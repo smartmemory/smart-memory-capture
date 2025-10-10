@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # AI/ML Pipeline Service
+  pipeline:
+    build: ./pipeline
+    ports:
+      - "8001:8001"
+    environment:
+      - STORAGE_SERVICE_URL=http://storage:8000
+      - STORAGE_API_KEY=${STORAGE_API_KEY}
+      - PIPELINE_API_KEYS=${PIPELINE_API_KEYS}
+    depends_on:
+      - storage
+    volumes:
+      - ./pipeline:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+  # Storage Service
+  storage:
+    build: ./service
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/smart_memory
+      - API_KEYS=${STORAGE_API_KEY}
+    depends_on:
+      - db
+    volumes:
+      - ./service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=smart_memory
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

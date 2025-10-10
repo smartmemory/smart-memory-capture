@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Memory Library</title>
+  <link rel="stylesheet" href="library.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <h1>📚 Smart Memory Library</h1>
+        <div class="header-actions">
+          <button id="exportBtn" class="btn-secondary">
+            <span>📥</span> Export All
+          </button>
+          <button id="settingsBtn" class="btn-secondary">
+            <span>⚙️</span> Settings
+          </button>
+        </div>
+      </div>
+      
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search clips by title, tags, or content...">
+        <div class="filters">
+          <select id="filterMode">
+            <option value="all">All Types</option>
+            <option value="full">Full Page</option>
+            <option value="article">Article</option>
+            <option value="selection">Selection</option>
+            <option value="screenshot">Screenshot</option>
+          </select>
+          <select id="sortBy">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="title">Title A-Z</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="totalClips">0</div>
+        <div class="stat-label">Total Clips</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="thisWeek">0</div>
+        <div class="stat-label">This Week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalTags">0</div>
+        <div class="stat-label">Unique Tags</div>
+      </div>
+    </div>
+
+    <div class="tags-filter" id="tagsFilter"></div>
+
+    <main id="clipsContainer">
+      <div class="loading">Loading your clips...</div>
+    </main>
+
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <div class="empty-icon">📋</div>
+      <h2>No clips yet</h2>
+      <p>Start capturing web content by clicking the extension icon on any page</p>
+    </div>
+  </div>
+
+  <!-- Clip Detail Modal -->
+  <div id="clipModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle"></h2>
+        <button class="close-btn" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-meta">
+          <div class="meta-item">
+            <strong>URL:</strong> <a id="modalUrl" href="#" target="_blank"></a>
+          </div>
+          <div class="meta-item">
+            <strong>Captured:</strong> <span id="modalDate"></span>
+          </div>
+          <div class="meta-item">
+            <strong>Type:</strong> <span id="modalType"></span>
+          </div>
+          <div class="meta-item" id="modalTagsContainer">
+            <strong>Tags:</strong> <span id="modalTags"></span>
+          </div>
+          <div class="meta-item" id="modalNotesContainer">
+            <strong>Notes:</strong> <p id="modalNotes"></p>
+          </div>
+        </div>
+        <div class="modal-content-area" id="modalContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="deleteClipBtn" class="btn-danger">Delete</button>
+        <button id="exportClipBtn" class="btn-secondary">Export</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="library.js"></script>
+</body>
+</html>

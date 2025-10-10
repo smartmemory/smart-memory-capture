@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Memory Capture - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⚙️ Settings</h1>
+      <p>Configure your Smart Memory Capture extension</p>
+    </header>
+
+    <main>
+      <section class="settings-section">
+        <h2>Storage Mode</h2>
+        <p class="section-desc">Choose how clips are stored</p>
+        
+        <div class="form-group">
+          <label>
+            <input type="radio" name="syncMode" value="local-first" checked>
+            <strong>Local First</strong> - Store locally, optionally sync to server as backup
+          </label>
+        </div>
+        
+        <div class="form-group">
+          <label>
+            <input type="radio" name="syncMode" value="server-primary">
+            <strong>Server Primary</strong> - Save to server first, cache locally (last 100 clips)
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Sync Configuration</h2>
+        <p class="section-desc">Configure your external server or API endpoint</p>
+        
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="autoSync">
+            Enable automatic sync (for Local First mode)
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="syncEndpoint">Sync Endpoint URL</label>
+          <input type="url" id="syncEndpoint" placeholder="https://your-server.com/api/clips">
+          <small>Your clips will be sent as POST requests to this endpoint</small>
+        </div>
+
+        <button id="testSyncBtn" class="btn-secondary">Test Connection</button>
+        <div id="syncStatus" class="status-message"></div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Default Settings</h2>
+        
+        <div class="form-group">
+          <label for="defaultTags">Default Tags</label>
+          <input type="text" id="defaultTags" placeholder="e.g., reading, research">
+          <small>These tags will be pre-filled when capturing new clips</small>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Data Management</h2>
+        
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value" id="clipCount">0</div>
+            <div class="stat-label">Total Clips</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="storageSize">0 KB</div>
+            <div class="stat-label">Storage Used</div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button id="exportAllBtn" class="btn-primary">Export All Clips</button>
+          <button id="importBtn" class="btn-secondary">Import Clips</button>
+          <button id="clearAllBtn" class="btn-danger">Clear All Data</button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+      </section>
+
+      <div class="save-status" id="saveStatus"></div>
+    </main>
+
+    <footer>
+      <p>Smart Memory Capture v1.0.0</p>
+      <a href="library.html" target="_blank">View Library</a>
+    </footer>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

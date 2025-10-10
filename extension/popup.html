@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Memory Capture</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📋 Smart Memory Capture</h1>
+      <p class="subtitle">Save this page to your collection</p>
+    </header>
+
+    <div class="page-info">
+      <div class="page-title" id="pageTitle">Loading...</div>
+      <div class="page-url" id="pageUrl"></div>
+    </div>
+
+    <div class="capture-options">
+      <h3>Capture Mode</h3>
+      <div class="option-group">
+        <label class="option-card">
+          <input type="radio" name="captureMode" value="full" checked>
+          <div class="option-content">
+            <span class="option-icon">📄</span>
+            <div>
+              <div class="option-title">Full Page</div>
+              <div class="option-desc">Capture entire page content</div>
+            </div>
+          </div>
+        </label>
+
+        <label class="option-card">
+          <input type="radio" name="captureMode" value="article">
+          <div class="option-content">
+            <span class="option-icon">📰</span>
+            <div>
+              <div class="option-title">Article</div>
+              <div class="option-desc">Extract main article content</div>
+            </div>
+          </div>
+        </label>
+
+        <label class="option-card">
+          <input type="radio" name="captureMode" value="selection">
+          <div class="option-content">
+            <span class="option-icon">✂️</span>
+            <div>
+              <div class="option-title">Selection</div>
+              <div class="option-desc">Capture selected text only</div>
+            </div>
+          </div>
+        </label>
+
+        <label class="option-card">
+          <input type="radio" name="captureMode" value="screenshot">
+          <div class="option-content">
+            <span class="option-icon">📸</span>
+            <div>
+              <div class="option-title">Screenshot</div>
+              <div class="option-desc">Capture visual screenshot</div>
+            </div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="tags-section">
+      <label for="tags">Tags (comma-separated)</label>
+      <input type="text" id="tags" placeholder="e.g., research, tutorial, important">
+    </div>
+
+    <div class="notes-section">
+      <label for="notes">Notes (optional)</label>
+      <textarea id="notes" placeholder="Add your thoughts or comments..."></textarea>
+    </div>
+
+    <div class="actions">
+      <button id="captureBtn" class="btn-primary">
+        <span class="btn-icon">💾</span>
+        Capture & Save
+      </button>
+      <button id="viewLibraryBtn" class="btn-secondary">
+        View Library
+      </button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <footer>
+      <a href="#" id="settingsLink">⚙️ Settings</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
