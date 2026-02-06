@@ -47,3 +47,7 @@ Thumbs.db
 *.log
 logs/
 package-lock.json
+
+.claude/
+!.claude/rules/
+!.claude/commands/

@@ -29,3 +29,7 @@ models/
 
 # Logs
 *.log
+
+.claude/
+!.claude/rules/
+!.claude/commands/

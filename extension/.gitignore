@@ -4,3 +4,6 @@
 node_modules
 dist
 .cache
+.claude/
+!.claude/rules/
+!.claude/commands/
