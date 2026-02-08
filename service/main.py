@@ -9,15 +9,25 @@ from typing import Optional, List
 import uvicorn
 from datetime import datetime
 
+from pathlib import Path
+
 from models import Clip, ClipCreate, ClipResponse, ClipsListResponse, SearchResponse
 from database import get_db, init_db
 from auth import verify_api_key
 from sqlalchemy.orm import Session
 
+
+def _read_version() -> str:
+    for p in (Path(__file__).resolve().parents[1] / "VERSION", Path("VERSION")):
+        if p.is_file():
+            return p.read_text().strip()
+    return "unknown"
+
+
 app = FastAPI(
     title="Smart Memory Capture API",
     description="Backend service for Smart Memory Capture Chrome Extension",
-    version="1.0.0"
+    version=_read_version()
 )
 
 # CORS configuration - allows Chrome extension to make requests

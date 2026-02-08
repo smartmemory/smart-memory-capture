@@ -10,15 +10,25 @@ import httpx
 import os
 from datetime import datetime
 
+from pathlib import Path
+
 from models import ClipInput, ClipProcessed, PipelineResponse
 from extractors import ContentExtractor, MetadataExtractor, EmbeddingGenerator
 from processors import TextCleaner, EntityExtractor, SummaryGenerator
 from auth import verify_api_key
 
+
+def _read_version() -> str:
+    for p in (Path(__file__).resolve().parents[1] / "VERSION", Path("VERSION")):
+        if p.is_file():
+            return p.read_text().strip()
+    return "unknown"
+
+
 app = FastAPI(
     title="Smart Memory Capture Pipeline",
     description="AI/ML processing pipeline for web clips",
-    version="1.0.0"
+    version=_read_version()
 )
 
 # CORS for Chrome extension
