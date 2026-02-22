@@ -4,10 +4,12 @@ async function loadSettings() {
     'syncMode',
     'autoSync',
     'syncEndpoint',
-    'syncApiToken',
     'defaultTags',
     'duplicatePolicy'
   ]);
+  // Token is device-local only — never synced to Google's cloud
+  const { syncApiToken } = await chrome.storage.local.get(['syncApiToken']);
+  settings.syncApiToken = syncApiToken;
 
   // Set sync mode — whitelist to prevent XSS via querySelector attribute injection
   const allowedModes = ['local-first', 'server-primary'];
@@ -39,7 +41,9 @@ async function updateStats() {
 
 // Save settings
 async function saveSettings() {
+  const allowedModes = ['local-first', 'server-primary'];
   const syncMode = document.querySelector('input[name="syncMode"]:checked').value;
+  if (!allowedModes.includes(syncMode)) return;
   const endpointRaw = document.getElementById('syncEndpoint').value.trim();
 
   // Validate endpoint: require HTTPS (allow http://localhost for dev)
@@ -61,11 +65,13 @@ async function saveSettings() {
     syncMode: syncMode,
     autoSync: document.getElementById('autoSync').checked,
     syncEndpoint: endpointRaw,
-    syncApiToken: document.getElementById('syncApiToken').value,
     defaultTags: document.getElementById('defaultTags').value
   };
 
   await chrome.storage.sync.set(settings);
+  // Token is device-local only — stored in .local, never synced.
+  // Also saved here (not just on blur) so radio/checkbox changes don't lose an unsaved token.
+  await chrome.storage.local.set({ syncApiToken: document.getElementById('syncApiToken').value.trim() });
   showSaveStatus('Settings saved successfully!', 'success');
 }
 
@@ -93,12 +99,23 @@ async function testSync() {
     return;
   }
 
-  // Validate HTTPS before attempting request
+  // Validate HTTPS and block RFC-1918/loopback ranges before sending the token
   try {
     const parsed = new URL(endpoint);
-    const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    const h = parsed.hostname;
+    const isLocalhost = h === 'localhost' || h === '127.0.0.1';
     if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && isLocalhost)) {
       statusEl.textContent = '✗ Endpoint must use HTTPS';
+      statusEl.className = 'status-message error show';
+      return;
+    }
+    const isInternal = !isLocalhost && (
+      h === '::1' || /^127\./.test(h) || /^0\./.test(h) ||
+      /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\.|^169\.254\.|^100\.(6[4-9]|[7-9]\d|1([01]\d|2[0-7]))\./.test(h) ||
+      /^f[cd][0-9a-f]{2}:/i.test(h) || /^fe[89ab][0-9a-f]:/i.test(h) || /^::ffff:/i.test(h)
+    );
+    if (isInternal) {
+      statusEl.textContent = '✗ Endpoint must not be a private/internal address';
       statusEl.className = 'status-message error show';
       return;
     }
@@ -238,7 +255,8 @@ document.getElementById('syncEndpoint').addEventListener('blur', async () => {
   showSaveStatus('Settings saved successfully!', 'success');
 });
 document.getElementById('syncApiToken').addEventListener('blur', async () => {
-  await chrome.storage.sync.set({ syncApiToken: document.getElementById('syncApiToken').value.trim() });
+  // Token stored locally only — not synced to Google's cloud
+  await chrome.storage.local.set({ syncApiToken: document.getElementById('syncApiToken').value.trim() });
   showSaveStatus('Settings saved successfully!', 'success');
 });
 document.getElementById('defaultTags').addEventListener('blur', async () => {
@@ -246,7 +264,10 @@ document.getElementById('defaultTags').addEventListener('blur', async () => {
   showSaveStatus('Settings saved successfully!', 'success');
 });
 document.getElementById('duplicatePolicy').addEventListener('change', async () => {
-  await chrome.storage.sync.set({ duplicatePolicy: document.getElementById('duplicatePolicy').value });
+  const allowedPolicies = ['prompt', 'always', 'never'];
+  const val = document.getElementById('duplicatePolicy').value;
+  if (!allowedPolicies.includes(val)) return;
+  await chrome.storage.sync.set({ duplicatePolicy: val });
   showSaveStatus('Settings saved successfully!', 'success');
 });
 document.getElementById('testSyncBtn').addEventListener('click', testSync);

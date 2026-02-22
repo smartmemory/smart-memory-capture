@@ -28,11 +28,12 @@ async function checkDuplicate(tab) {
   // 'always': skip check entirely — re-capture without any notice
   if (duplicatePolicy === 'always') return;
 
-  // In server-primary mode local cache is partial — skip the check
-  if (syncMode === 'server-primary') return;
-
   const existing = clips.find(c => c.url === tab.url);
   if (!existing) return;
+
+  // In server-primary mode the local cache is partial — skip date-comparison ('prompt') logic.
+  // 'never' is allowed through because it's a user intent signal that must always be enforced.
+  if (syncMode === 'server-primary' && duplicatePolicy !== 'never') return;
 
   const capturedOn = new Date(existing.timestamp).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric'
@@ -72,7 +73,7 @@ async function checkDuplicate(tab) {
         return d;
       }
     });
-    currentDate = result.result;
+    currentDate = result?.result ?? null;
   } catch { /* non-injectable page (chrome:// etc.) — skip check */ return; }
 
   const storedDate = existing.metadata?.published_at ?? null;
@@ -92,12 +93,23 @@ async function checkDuplicate(tab) {
       noticeEl.textContent = `↻ Re-capturing updated page…`;
       noticeEl.style.cursor = '';
     }, { once: true });
-  } else {
-    // Same content — disable capture silently
+  } else if (currentDate && storedDate) {
+    // Dates match — same content, disable silently
     noticeEl.textContent = `✓ Already captured on ${capturedOn}`;
     noticeEl.className = 'duplicate-notice saved';
     captureBtn.disabled = true;
     captureBtn.classList.add('btn-disabled');
+  } else {
+    // Can't compare dates (one or both absent) — show notice but allow re-capture
+    noticeEl.textContent = `↻ Already captured on ${capturedOn} — click to re-capture`;
+    noticeEl.className = 'duplicate-notice updated';
+    noticeEl.style.cursor = 'pointer';
+    noticeEl.addEventListener('click', () => {
+      captureBtn.disabled = false;
+      captureBtn.classList.remove('btn-disabled');
+      noticeEl.textContent = `↻ Re-capturing…`;
+      noticeEl.style.cursor = '';
+    }, { once: true });
   }
   noticeEl.style.display = 'block';
 }
@@ -143,6 +155,17 @@ function extractYouTubePageData() {
 
 // Fetch and parse YouTube transcript XML — returns plain text or null
 async function fetchYouTubeTranscript(transcriptUrl) {
+  // Guard: transcriptUrl comes from MAIN-world page data and may be attacker-controlled
+  try {
+    const _u = new URL(transcriptUrl);
+    const h = _u.hostname;
+    if (_u.protocol !== 'https:' && _u.protocol !== 'http:') return null;
+    const isInternal =
+      h === 'localhost' || /^127\./.test(h) || /^0\./.test(h) || h === '::1' ||
+      /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\.|^169\.254\.|^100\.(6[4-9]|[7-9]\d|1([01]\d|2[0-7]))\./.test(h) ||
+      /^f[cd][0-9a-f]{2}:/i.test(h) || /^fe[89ab][0-9a-f]:/i.test(h) || /^::ffff:/i.test(h);
+    if (isInternal) return null;
+  } catch { return null; }
   try {
     const resp = await fetch(transcriptUrl);
     if (!resp.ok) return null;
@@ -300,8 +323,11 @@ async function fetchHeroImage(metadata, rawHtml, pageUrl) {
         const w = parseInt(img.getAttribute('width') || '0', 10);
         const h = parseInt(img.getAttribute('height') || '0', 10);
         if (w > 200 || h > 200 || (!w && !h)) {
-          // Resolve relative URL using the base
-          try { imageUrl = new URL(img.src, pageUrl).href; break; } catch { /* skip */ }
+          // Use getAttribute to get the raw src value — img.src resolves against
+          // the extension origin in DOMParser context, not the injected <base> href.
+          const rawSrc = img.getAttribute('src');
+          if (!rawSrc || rawSrc.startsWith('data:') || rawSrc.startsWith('blob:') || rawSrc.startsWith('javascript:')) continue;
+          try { imageUrl = new URL(rawSrc, pageUrl).href; break; } catch { /* skip */ }
         }
       }
     } catch { /* ignore */ }
@@ -309,9 +335,34 @@ async function fetchHeroImage(metadata, rawHtml, pageUrl) {
 
   if (!imageUrl) return null;
 
+  // Guard against SSRF: reject non-http(s) schemes and RFC-1918 / loopback / link-local hosts.
+  // The extension has <all_urls> permission so it can reach internal network addresses —
+  // a malicious page could set og:image to http://192.168.1.1/admin to probe the LAN.
+  try {
+    const _u = new URL(imageUrl);
+    const h = _u.hostname;
+    const isInternal =
+      h === 'localhost' || /^127\./.test(h) || /^0\./.test(h) || h === '::1' ||
+      /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\.|^169\.254\.|^100\.(6[4-9]|[7-9]\d|1([01]\d|2[0-7]))\./.test(h) ||
+      // IPv6 ULA (fc00::/7), link-local (fe80::/10), and IPv4-mapped (::ffff:)
+      /^f[cd][0-9a-f]{2}:/i.test(h) || /^fe[89ab][0-9a-f]:/i.test(h) || /^::ffff:/i.test(h);
+    if ((_u.protocol !== 'https:' && _u.protocol !== 'http:') || isInternal) return null;
+  } catch { return null; }
+
   try {
     const resp = await fetch(imageUrl);
     if (!resp.ok) return null;
+    // Re-validate final URL after redirects — guards against open-redirect SSRF on CDN URLs
+    try {
+      const finalH = new URL(resp.url).hostname;
+      if (finalH !== new URL(imageUrl).hostname) {
+        if (finalH === 'localhost' || /^127\./.test(finalH) || /^0\./.test(finalH) || finalH === '::1' ||
+            /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\.|^169\.254\.|^100\.(6[4-9]|[7-9]\d|1([01]\d|2[0-7]))\./.test(finalH) ||
+            /^f[cd][0-9a-f]{2}:/i.test(finalH) || /^fe[89ab][0-9a-f]:/i.test(finalH) || /^::ffff:/i.test(finalH)) {
+          return null;
+        }
+      }
+    } catch { return null; }
     const blob = await resp.blob();
     if (blob.size > HERO_MAX_BYTES) return null;
     // Only inline supported image types — guard against unexpected content
@@ -358,20 +409,35 @@ function capturePageContent(mode) {
   const getMeta = (selector) => document.querySelector(selector)?.content ?? null;
   const getOg = (prop) => getMeta(`meta[property="${prop}"]`);
 
-  // Publish date: og/article tag → JSON-LD → <time datetime>
+  // Publish date + schema.org structured data: og/article tag → JSON-LD → <time datetime>
   let publishedAt = getOg('article:published_time');
-  if (!publishedAt) {
-    for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
-      try {
-        const data = JSON.parse(script.textContent);
-        const items = Array.isArray(data) ? data : [data, ...(data['@graph'] ?? [])];
-        for (const item of items) {
-          if (item.datePublished) { publishedAt = item.datePublished; break; }
+  let schemaType = null;
+  let ldAuthor = null;
+  let ldDescription = null;
+
+  const SCHEMA_TYPES = new Set(['Article', 'BlogPosting', 'Recipe', 'Product', 'NewsArticle', 'TechArticle']);
+
+  for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try {
+      const data = JSON.parse(script.textContent);
+      const items = Array.isArray(data) ? data : [data, ...(data['@graph'] ?? [])];
+      for (const item of items) {
+        // Normalise @type to bare name (may be a full schema.org URL)
+        const rawType = Array.isArray(item['@type']) ? item['@type'][0] : (item['@type'] ?? '');
+        const bareType = rawType.replace(/^.*\//, '');
+        if (!schemaType && SCHEMA_TYPES.has(bareType)) schemaType = bareType;
+        if (!publishedAt && item.datePublished) publishedAt = item.datePublished;
+        if (!ldAuthor) {
+          const a = item.author;
+          if (typeof a === 'string') ldAuthor = a;
+          else if (Array.isArray(a) && a.length > 0) ldAuthor = (typeof a[0] === 'string' ? a[0] : (a[0]?.name ?? null));
+          else if (a && typeof a === 'object') ldAuthor = a.name ?? null;
         }
-      } catch { /* ignore malformed JSON-LD */ }
-      if (publishedAt) break;
-    }
+        if (!ldDescription && item.description) ldDescription = String(item.description);
+      }
+    } catch { /* ignore malformed JSON-LD */ }
   }
+
   if (!publishedAt) {
     publishedAt = document.querySelector('time[datetime]')?.getAttribute('datetime') ?? null;
   }
@@ -384,9 +450,12 @@ function capturePageContent(mode) {
     og_image: getOg('og:image'),
     og_type: getOg('og:type'),
     og_site_name: getOg('og:site_name'),
-    author: getMeta('meta[name="author"]'),
-    description: getMeta('meta[name="description"]'),
+    // <meta name="author"> takes priority; fall back to JSON-LD author
+    author: getMeta('meta[name="author"]') ?? ldAuthor,
+    // <meta name="description"> takes priority; fall back to JSON-LD description
+    description: getMeta('meta[name="description"]') ?? ldDescription,
     published_at: publishedAt,
+    schema_type: schemaType,
     word_count: wordCount,
     reading_time_minutes: Math.ceil(wordCount / 200)
   };

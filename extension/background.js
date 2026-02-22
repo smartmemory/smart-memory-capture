@@ -14,11 +14,13 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.tabs.create({ url: 'options.html' });
   }
   
-  // Create context menu (on install or update)
-  chrome.contextMenus.create({
-    id: 'captureSelection',
-    title: 'Capture selection to Smart Memory',
-    contexts: ['selection']
+  // Remove existing menu entries before re-creating to avoid duplicate-id errors on update
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'captureSelection',
+      title: 'Capture selection to Smart Memory',
+      contexts: ['selection']
+    });
   });
 });
 
@@ -35,8 +37,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'clipSaved') {
     if (sender.tab) return false;
     if (!clipIsValid) return false;
-    handleClipSaved(clip).catch(console.error);
-    return false;
+    handleClipSaved(clip)
+      .catch(console.error)
+      .finally(() => sendResponse({}));
+    return true; // keep channel open so the worker stays alive through the async work
   } else if (request.action === 'syncToServer') {
     // Only accept from extension pages (popup/options), not content scripts (sender.tab is set for content scripts)
     if (sender.tab) return false;
@@ -49,7 +53,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (typeof request.selectionText !== 'string' || !request.selectionText) {
       sendResponse({ success: false, error: 'No selection text' }); return false;
     }
-    saveSelectionClip(request, sender.tab).then(sendResponse);
+    saveSelectionClip(request, sender.tab)
+      .then(sendResponse)
+      .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
   }
 });
@@ -94,7 +100,8 @@ async function syncToServer(clip, endpoint) {
     return { success: false, error: 'Invalid sync endpoint URL' };
   }
 
-  const { syncApiToken } = await chrome.storage.sync.get(['syncApiToken']);
+  // Token is device-local only — never synced to Google's cloud via storage.sync
+  const { syncApiToken } = await chrome.storage.local.get(['syncApiToken']);
 
   const headers = { 'Content-Type': 'application/json' };
   if (syncApiToken) {
@@ -120,11 +127,13 @@ async function syncToServer(clip, endpoint) {
       ...(meta.og_description && { description: meta.og_description }),
       ...(meta.word_count && { word_count: meta.word_count }),
       ...(meta.reading_time_minutes && { reading_time_minutes: meta.reading_time_minutes }),
+      ...(meta.schema_type && { schema_type: meta.schema_type }),
       readability_extracted: clip.content?.readability ?? false,
       ...(clip.content?.heroImage && { hero_image: clip.content.heroImage }),
       ...(meta.video_id && { video_id: meta.video_id }),
       ...(meta.duration_seconds && { duration_seconds: meta.duration_seconds }),
-      ...(clip.content?.hasTranscript !== undefined && { has_transcript: clip.content.hasTranscript })
+      ...(clip.content?.hasTranscript !== undefined && { has_transcript: clip.content.hasTranscript }),
+      ...(clip.notes && { notes: clip.notes })
     }
   };
 
@@ -162,15 +171,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 async function saveSelectionClip(request, tab) {
   const clip = {
     id: crypto.randomUUID(),
-    title: request.title || tab.title,
-    url: request.url || tab.url,
+    title: tab.title,   // always use trusted tab values, not page-controlled request fields
+    url: tab.url,
     mode: 'selection',
     content: { type: 'text', data: request.selectionText, html: null },
     tags: Array.isArray(request.tags) ? request.tags : [],
-    notes: '',
+    notes: request.notes ?? '',
     timestamp: new Date().toISOString(),
-    favicon: request.favicon || tab.favIconUrl,
-    metadata: {}
+    favicon: tab.favIconUrl,  // always use browser-verified favicon, never page-supplied
+    metadata: request.metadata ?? {}
   };
 
   const { syncMode, syncEndpoint } = await chrome.storage.sync.get(['syncMode', 'syncEndpoint']);
@@ -182,7 +191,21 @@ async function saveSelectionClip(request, tab) {
 
   const { clips = [] } = await chrome.storage.local.get(['clips']);
   clips.unshift(clip);
+  const maxCache = syncMode === 'server-primary' ? 100 : 1000;
+  if (clips.length > maxCache) clips.splice(maxCache);
   await chrome.storage.local.set({ clips });
-  handleClipSaved(clip);
+  if (syncMode === 'server-primary') {
+    // Sync already completed above — show notification only, don't re-sync via handleClipSaved
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Clip Saved',
+      message: `"${clip.title}" has been saved to your library`,
+      priority: 1
+    });
+  } else {
+    // Await before returning so the MV3 service worker stays alive through the notification + autoSync fetch
+    try { await handleClipSaved(clip); } catch (e) { console.error(e); }
+  }
   return { success: true };
 }

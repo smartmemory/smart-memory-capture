@@ -2,6 +2,8 @@
 
 // Listen for messages from popup or background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return;
+
   if (request.action === 'getSelection') {
     sendResponse({ selection: window.getSelection().toString() });
     return;
@@ -135,6 +137,7 @@ function showCaptureSheet(selectionText, defaultTags) {
       </div>
       <div class="sheet-preview" id="smPreview"></div>
       <input type="text" id="smTags" placeholder="Tags (comma-separated)">
+      <input type="text" id="smNotes" placeholder="Notes (optional)">
       <div class="sheet-actions">
         <button class="btn-save" id="smSave">Save</button>
       </div>
@@ -160,10 +163,13 @@ function showCaptureSheet(selectionText, defaultTags) {
     const tags = shadow.getElementById('smTags').value
       .split(',').map(t => t.trim()).filter(t => t);
 
+    const notes = shadow.getElementById('smNotes').value.trim();
+
     const result = await chrome.runtime.sendMessage({
       action: 'saveSelectionClip',
       selectionText,
       tags,
+      notes,
       title: document.title,
       url: location.href,
       favicon: document.querySelector('link[rel~="icon"]')?.href ?? ''
