@@ -43,6 +43,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (!clipIsValid) { sendResponse({ success: false, error: 'Invalid clip' }); return false; }
     syncToServer(clip).then(sendResponse);
     return true;
+  } else if (request.action === 'saveSelectionClip') {
+    // Accepts from content scripts only
+    if (!sender.tab) return false;
+    if (typeof request.selectionText !== 'string' || !request.selectionText) {
+      sendResponse({ success: false, error: 'No selection text' }); return false;
+    }
+    saveSelectionClip(request, sender.tab).then(sendResponse);
+    return true;
   }
 });
 
@@ -112,7 +120,8 @@ async function syncToServer(clip, endpoint) {
       ...(meta.og_description && { description: meta.og_description }),
       ...(meta.word_count && { word_count: meta.word_count }),
       ...(meta.reading_time_minutes && { reading_time_minutes: meta.reading_time_minutes }),
-      readability_extracted: clip.content?.readability ?? false
+      readability_extracted: clip.content?.readability ?? false,
+      ...(clip.content?.heroImage && { hero_image: clip.content.heroImage })
     }
   };
 
@@ -134,29 +143,43 @@ async function syncToServer(clip, endpoint) {
   }
 }
 
-// Context menu click handler
+// Context menu click handler — show inline capture sheet (CAP-ENH-1h)
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'captureSelection') {
-    const clip = {
-      id: crypto.randomUUID(),
-      title: tab.title,
-      url: tab.url,
-      mode: 'selection',
-      content: {
-        type: 'text',
-        data: info.selectionText,
-        html: null
-      },
-      tags: [],
-      notes: '',
-      timestamp: new Date().toISOString(),
-      favicon: tab.favIconUrl
-    };
-    
-    const { clips = [] } = await chrome.storage.local.get(['clips']);
-    clips.unshift(clip);
-    await chrome.storage.local.set({ clips });
-    
-    handleClipSaved(clip);
+    const { defaultTags = '' } = await chrome.storage.sync.get(['defaultTags']);
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'showCaptureSheet',
+      selectionText: info.selectionText,
+      defaultTags
+    });
   }
 });
+
+// Save a selection clip originating from the inline capture sheet
+async function saveSelectionClip(request, tab) {
+  const clip = {
+    id: crypto.randomUUID(),
+    title: request.title || tab.title,
+    url: request.url || tab.url,
+    mode: 'selection',
+    content: { type: 'text', data: request.selectionText, html: null },
+    tags: Array.isArray(request.tags) ? request.tags : [],
+    notes: '',
+    timestamp: new Date().toISOString(),
+    favicon: request.favicon || tab.favIconUrl,
+    metadata: {}
+  };
+
+  const { syncMode, syncEndpoint } = await chrome.storage.sync.get(['syncMode', 'syncEndpoint']);
+
+  if (syncMode === 'server-primary' && syncEndpoint) {
+    const result = await syncToServer(clip);
+    if (!result.success) return result;
+  }
+
+  const { clips = [] } = await chrome.storage.local.get(['clips']);
+  clips.unshift(clip);
+  await chrome.storage.local.set({ clips });
+  handleClipSaved(clip);
+  return { success: true };
+}

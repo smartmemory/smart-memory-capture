@@ -146,7 +146,16 @@ function createClipCard(clip) {
     year: 'numeric'
   });
   
+  // Hero image takes priority as card thumbnail
   let preview = '';
+  if (clip.content?.heroImage) {
+    const src = clip.content.heroImage;
+    const img = document.createElement('img');
+    img.src = /^data:image\/(jpeg|png|gif|webp);base64,/.test(src) ? src : '';
+    img.alt = 'Hero image';
+    img.className = 'clip-hero';
+    preview = img.outerHTML;
+  } else
   if (clip.content?.type === 'screenshot') {
     const src = clip.content?.data ?? '';
     const img = document.createElement('img');

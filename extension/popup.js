@@ -157,6 +157,10 @@ async function captureContent() {
           };
         }
         metadata = raw.metadata ?? {};
+
+        // Fetch hero image in popup context (non-blocking — skip silently on failure)
+        const heroImage = await fetchHeroImage(metadata, raw.rawHtml, tab.url);
+        if (heroImage) content.heroImage = heroImage;
       }
     }
 
@@ -190,6 +194,53 @@ async function captureContent() {
     console.error('Capture error:', error);
     statusEl.textContent = '✗ Error: ' + error.message;
     statusEl.className = 'status error';
+  }
+}
+
+// Fetch og:image (or first large <img>) and inline as base64 data URI.
+// Runs in popup context — extension pages have <all_urls> host permission.
+// Returns null on any failure (network, CORS, size over cap, no image found).
+async function fetchHeroImage(metadata, rawHtml, pageUrl) {
+  const HERO_MAX_BYTES = 500 * 1024; // 500 KB cap
+
+  // Source priority: og:image → first large <img> from raw HTML
+  let imageUrl = metadata?.og_image ?? null;
+
+  if (!imageUrl && rawHtml) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawHtml, 'text/html');
+      const base = doc.createElement('base');
+      base.href = pageUrl;
+      doc.head.prepend(base);
+      for (const img of doc.querySelectorAll('img[src]')) {
+        const w = parseInt(img.getAttribute('width') || '0', 10);
+        const h = parseInt(img.getAttribute('height') || '0', 10);
+        if (w > 200 || h > 200 || (!w && !h)) {
+          // Resolve relative URL using the base
+          try { imageUrl = new URL(img.src, pageUrl).href; break; } catch { /* skip */ }
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!imageUrl) return null;
+
+  try {
+    const resp = await fetch(imageUrl);
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    if (blob.size > HERO_MAX_BYTES) return null;
+    // Only inline supported image types — guard against unexpected content
+    if (!/^image\/(jpeg|png|gif|webp)$/.test(blob.type)) return null;
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
   }
 }
 
