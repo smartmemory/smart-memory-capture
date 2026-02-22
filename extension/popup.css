@@ -164,6 +164,32 @@ textarea {
   max-height: 120px;
 }
 
+.duplicate-notice {
+  margin: 0 20px 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.duplicate-notice.saved {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.duplicate-notice.updated {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.btn-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .actions {
   padding: 0 20px 20px;
   display: flex;

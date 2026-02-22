@@ -16,6 +16,70 @@ async function init() {
   if (defaultTags) {
     document.getElementById('tags').value = defaultTags;
   }
+
+  await checkDuplicate(tab);
+}
+
+// Check if this URL has already been captured. If so, disable capture unless
+// the page's publish date has changed (content updated).
+async function checkDuplicate(tab) {
+  const { syncMode, clips = [] } = await chrome.storage.sync.get(['syncMode'])
+    .then(s => chrome.storage.local.get(['clips']).then(l => ({ ...s, ...l })));
+
+  // In server-primary mode local cache is partial — skip the check
+  if (syncMode === 'server-primary') return;
+
+  const existing = clips.find(c => c.url === tab.url);
+  if (!existing) return;
+
+  // Quickly extract current publish date from the page (no Readability needed)
+  let currentDate = null;
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const getMeta = (sel) => document.querySelector(sel)?.content ?? null;
+        let d = getMeta('meta[property="article:published_time"]');
+        if (!d) {
+          for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+            try {
+              const data = JSON.parse(s.textContent);
+              const items = Array.isArray(data) ? data : [data, ...(data['@graph'] ?? [])];
+              for (const item of items) { if (item.datePublished) { d = item.datePublished; break; } }
+            } catch { /* ignore malformed JSON-LD */ }
+            if (d) break;
+          }
+        }
+        if (!d) d = document.querySelector('time[datetime]')?.getAttribute('datetime') ?? null;
+        return d;
+      }
+    });
+    currentDate = result.result;
+  } catch { /* non-injectable page (chrome:// etc.) — skip check */ return; }
+
+  const storedDate = existing.metadata?.published_at ?? null;
+  const dateChanged = currentDate && storedDate &&
+    new Date(currentDate).getTime() !== new Date(storedDate).getTime();
+
+  const capturedOn = new Date(existing.timestamp).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  });
+
+  const noticeEl = document.getElementById('duplicateNotice');
+  const captureBtn = document.getElementById('captureBtn');
+
+  if (dateChanged) {
+    // Content has been updated — allow re-capture, show subtle notice
+    noticeEl.textContent = `↻ Updated since last capture (${capturedOn})`;
+    noticeEl.className = 'duplicate-notice updated';
+  } else {
+    // Same content — disable capture silently
+    noticeEl.textContent = `✓ Already captured on ${capturedOn}`;
+    noticeEl.className = 'duplicate-notice saved';
+    captureBtn.disabled = true;
+    captureBtn.classList.add('btn-disabled');
+  }
+  noticeEl.style.display = 'block';
 }
 
 // Capture content based on selected mode
