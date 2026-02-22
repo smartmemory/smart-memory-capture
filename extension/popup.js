@@ -69,9 +69,18 @@ async function checkDuplicate(tab) {
   const captureBtn = document.getElementById('captureBtn');
 
   if (dateChanged) {
-    // Content has been updated — allow re-capture, show subtle notice
-    noticeEl.textContent = `↻ Updated since last capture (${capturedOn})`;
+    // Content has been updated — show notice and require one confirmation click
+    noticeEl.textContent = `↻ Page updated since last capture (${capturedOn}) — click to re-capture`;
     noticeEl.className = 'duplicate-notice updated';
+    captureBtn.disabled = true;
+    captureBtn.classList.add('btn-disabled');
+    noticeEl.style.cursor = 'pointer';
+    noticeEl.addEventListener('click', () => {
+      captureBtn.disabled = false;
+      captureBtn.classList.remove('btn-disabled');
+      noticeEl.textContent = `↻ Re-capturing updated page…`;
+      noticeEl.style.cursor = '';
+    }, { once: true });
   } else {
     // Same content — disable capture silently
     noticeEl.textContent = `✓ Already captured on ${capturedOn}`;
