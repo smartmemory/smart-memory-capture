@@ -45,72 +45,25 @@ convert -size 128x128 xc:#667eea icon128.png
 3. Try capturing the page
 4. Click "View Library" to see your saved clips
 
-## Setting Up Your Own Backend (Optional)
+## Setting Up SmartMemory Sync (Optional)
 
-If you want to sync clips to your own server, here's a minimal example:
+If you want to sync clips to your SmartMemory account:
 
-### Node.js + Express
+### 1. Get your API token
 
-```bash
-mkdir clip-server
-cd clip-server
-npm init -y
-npm install express cors
-```
+1. Log in to your SmartMemory dashboard
+2. Go to **Settings → API Keys**
+3. Create a new key and copy it
 
-Create `server.js`:
-```javascript
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
+### 2. Configure the extension
 
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+1. Open the extension and click **⚙️ Settings**
+2. Under **SmartMemory Sync**, enter your API URL (e.g. `https://api.smartmemory.ai`)
+3. Paste your API token in the **API Token** field
+4. Optionally enable **automatic sync**
+5. Click **Test Connection** to verify
 
-// Save clips to JSON file
-app.post('/api/clips', (req, res) => {
-  const clip = req.body;
-  const clips = JSON.parse(fs.readFileSync('clips.json', 'utf8') || '[]');
-  clips.push(clip);
-  fs.writeFileSync('clips.json', JSON.stringify(clips, null, 2));
-  res.json({ success: true });
-});
-
-app.listen(3000, () => console.log('Server running on http://localhost:3000'));
-```
-
-Run: `node server.js`
-
-Then in extension settings, set sync endpoint to: `http://localhost:3000/api/clips`
-
-### Python + Flask
-
-```bash
-pip install flask flask-cors
-```
-
-Create `server.py`:
-```python
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import json
-
-app = Flask(__name__)
-CORS(app)
-
-@app.route('/api/clips', methods=['POST'])
-def save_clip():
-    clip = request.json
-    with open('clips.json', 'a') as f:
-        f.write(json.dumps(clip) + '\n')
-    return jsonify({'success': True})
-
-if __name__ == '__main__':
-    app.run(port=3000)
-```
-
-Run: `python server.py`
+> **Note:** The sync endpoint must use HTTPS. `http://localhost` is accepted for local development only.
 
 ## Troubleshooting
 

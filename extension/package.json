@@ -1,8 +1,4 @@
 {
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.1.0"
-  },
   "devDependencies": {
     "@types/chrome": "^0.1.22"
   }

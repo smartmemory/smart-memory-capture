@@ -24,12 +24,24 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Listen for messages from popup or content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return;
+
+  // Validate clip shape before any action that uses it
+  const clip = request.clip;
+  const clipIsValid = clip && typeof clip === 'object' &&
+    typeof clip.id === 'string' && clip.id &&
+    typeof clip.url === 'string' && clip.url;
+
   if (request.action === 'clipSaved') {
-    handleClipSaved(request.clip);
-  }
-  
-  if (request.action === 'syncToServer') {
-    syncToServer(request.clip).then(sendResponse);
+    if (sender.tab) return false;
+    if (!clipIsValid) return false;
+    handleClipSaved(clip).catch(console.error);
+    return false;
+  } else if (request.action === 'syncToServer') {
+    // Only accept from extension pages (popup/options), not content scripts (sender.tab is set for content scripts)
+    if (sender.tab) return false;
+    if (!clipIsValid) { sendResponse({ success: false, error: 'Invalid clip' }); return false; }
+    syncToServer(clip).then(sendResponse);
     return true;
   }
 });
@@ -52,30 +64,59 @@ async function handleClipSaved(clip) {
   });
 }
 
-// Sync clip to external server
+// Sync clip to SmartMemory API
 async function syncToServer(clip, endpoint) {
   if (!endpoint) {
     const { syncEndpoint } = await chrome.storage.sync.get(['syncEndpoint']);
     endpoint = syncEndpoint;
   }
-  
+
   if (!endpoint) {
     return { success: false, error: 'No sync endpoint configured' };
   }
-  
+
+  // Validate HTTPS (allow localhost for development)
   try {
-    const response = await fetch(endpoint, {
+    const parsed = new URL(endpoint);
+    const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && isLocalhost)) {
+      return { success: false, error: 'Sync endpoint must use HTTPS' };
+    }
+  } catch {
+    return { success: false, error: 'Invalid sync endpoint URL' };
+  }
+
+  const { syncApiToken } = await chrome.storage.sync.get(['syncApiToken']);
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (syncApiToken) {
+    headers['Authorization'] = `Bearer ${syncApiToken}`;
+  }
+
+  // Map to SmartMemory ingest shape — never send raw HTML to the server
+  const payload = {
+    content: clip.content?.data ?? '',
+    memory_type: 'episodic',
+    metadata: {
+      source_url: clip.url,
+      title: clip.title,
+      tags: clip.tags || [],
+      captured_at: clip.timestamp,
+      capture_mode: clip.mode
+    }
+  };
+
+  try {
+    const response = await fetch(`${endpoint}/memory/ingest`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(clip)
+      headers,
+      body: JSON.stringify(payload)
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     return { success: true };
   } catch (error) {
     console.error('Sync error:', error);
@@ -87,7 +128,7 @@ async function syncToServer(clip, endpoint) {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'captureSelection') {
     const clip = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: tab.title,
       url: tab.url,
       mode: 'selection',

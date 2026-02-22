@@ -51,7 +51,7 @@ async function captureContent() {
     
     // Create clip object
     const clip = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: tab.title,
       url: tab.url,
       mode: mode,

@@ -38,5 +38,8 @@
       "js": ["content.js"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' data: blob:; connect-src 'self' https: http://localhost:*; frame-src 'none';"
+  }
 }

@@ -53,11 +53,12 @@
 ## What's Next?
 
 ### Set Up Sync (Optional)
-If you want to save clips to your own server:
+To sync clips to your SmartMemory account:
 1. Go to Settings (⚙️)
-2. Enter your API endpoint
-3. Enable auto-sync
-4. See README.md for backend examples
+2. Enter your SmartMemory API URL (e.g. `https://api.smartmemory.ai`)
+3. Paste your API token from the SmartMemory dashboard (Settings → API Keys)
+4. Enable auto-sync if desired
+5. Click **Test Connection** to verify
 
 ### Customize
 - Edit CSS files to change colors

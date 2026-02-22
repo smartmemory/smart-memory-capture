@@ -31,7 +31,7 @@ function updateStats() {
   // Count unique tags
   const allTags = new Set();
   allClips.forEach(clip => {
-    clip.tags.forEach(tag => allTags.add(tag));
+    (clip.tags || []).forEach(tag => allTags.add(tag));
   });
   document.getElementById('totalTags').textContent = allTags.size;
 }
@@ -40,9 +40,9 @@ function updateStats() {
 function renderTagsFilter() {
   const allTags = new Set();
   allClips.forEach(clip => {
-    clip.tags.forEach(tag => allTags.add(tag));
+    (clip.tags || []).forEach(tag => allTags.add(tag));
   });
-  
+
   const tagsFilter = document.getElementById('tagsFilter');
   
   if (allTags.size === 0) {
@@ -80,16 +80,16 @@ function applyFilters() {
   
   filteredClips = allClips.filter(clip => {
     // Search filter
-    const matchesSearch = !searchTerm || 
-      clip.title.toLowerCase().includes(searchTerm) ||
-      clip.content.data.toLowerCase().includes(searchTerm) ||
-      clip.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+    const matchesSearch = !searchTerm ||
+      clip.title?.toLowerCase().includes(searchTerm) ||
+      (clip.content?.type !== 'screenshot' && clip.content?.data?.toLowerCase().includes(searchTerm)) ||
+      (clip.tags || []).some(tag => tag.toLowerCase().includes(searchTerm));
     
     // Mode filter
     const matchesMode = filterMode === 'all' || clip.mode === filterMode;
     
     // Tag filter
-    const matchesTag = !selectedTag || clip.tags.includes(selectedTag);
+    const matchesTag = !selectedTag || (clip.tags || []).includes(selectedTag);
     
     return matchesSearch && matchesMode && matchesTag;
   });
@@ -100,7 +100,7 @@ function applyFilters() {
   } else if (sortBy === 'oldest') {
     filteredClips.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   } else if (sortBy === 'title') {
-    filteredClips.sort((a, b) => a.title.localeCompare(b.title));
+    filteredClips.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
   }
   
   renderClips();
@@ -131,7 +131,8 @@ function renderClips() {
   document.querySelectorAll('.clip-card').forEach(card => {
     card.addEventListener('click', () => {
       const clipId = card.dataset.clipId;
-      const clip = allClips.find(c => c.id === clipId);
+      const clip = allClips.find(c => String(c.id) === clipId);
+      if (!clip) return;
       showClipModal(clip);
     });
   });
@@ -146,17 +147,21 @@ function createClipCard(clip) {
   });
   
   let preview = '';
-  if (clip.content.type === 'screenshot') {
-    preview = `<img src="${clip.content.data}" alt="Screenshot">`;
+  if (clip.content?.type === 'screenshot') {
+    const src = clip.content?.data ?? '';
+    const img = document.createElement('img');
+    img.src = /^data:image\/(png|jpeg|gif|webp);base64,/.test(src) ? src : '';
+    img.alt = 'Screenshot';
+    preview = img.outerHTML;
   } else {
-    const text = clip.content.data.substring(0, 150);
-    preview = text + (clip.content.data.length > 150 ? '...' : '');
+    const text = clip.content?.data?.substring(0, 150) ?? '';
+    preview = escapeHtml(text) + ((clip.content?.data?.length ?? 0) > 150 ? '...' : '');
   }
-  
-  const tagsHtml = clip.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+
+  const tagsHtml = (clip.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('');
   
   return `
-    <div class="clip-card" data-clip-id="${clip.id}">
+    <div class="clip-card" data-clip-id="${escapeHtml(clip.id)}">
       <div class="clip-header">
         <div class="clip-title">${escapeHtml(clip.title)}</div>
         <div class="clip-url">${escapeHtml(clip.url)}</div>
@@ -167,7 +172,7 @@ function createClipCard(clip) {
       </div>
       <div class="clip-footer">
         <span class="clip-date">${date}</span>
-        <span class="clip-type">${clip.mode}</span>
+        <span class="clip-type">${escapeHtml(clip.mode)}</span>
       </div>
     </div>
   `;
@@ -178,8 +183,18 @@ function showClipModal(clip) {
   const modal = document.getElementById('clipModal');
   
   document.getElementById('modalTitle').textContent = clip.title;
-  document.getElementById('modalUrl').textContent = clip.url;
-  document.getElementById('modalUrl').href = clip.url;
+  const urlEl = document.getElementById('modalUrl');
+  try {
+    const parsed = new URL(clip.url ?? '');
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      urlEl.href = clip.url;
+    } else {
+      urlEl.removeAttribute('href');
+    }
+  } catch {
+    urlEl.removeAttribute('href');
+  }
+  urlEl.textContent = clip.url ?? '';
   
   const date = new Date(clip.timestamp).toLocaleString('en-US', {
     month: 'long',
@@ -192,9 +207,9 @@ function showClipModal(clip) {
   document.getElementById('modalType').textContent = clip.mode;
   
   // Tags
-  if (clip.tags.length > 0) {
+  if ((clip.tags || []).length > 0) {
     document.getElementById('modalTagsContainer').style.display = 'block';
-    document.getElementById('modalTags').textContent = clip.tags.join(', ');
+    document.getElementById('modalTags').textContent = (clip.tags || []).join(', ');
   } else {
     document.getElementById('modalTagsContainer').style.display = 'none';
   }
@@ -209,12 +224,26 @@ function showClipModal(clip) {
   
   // Content
   const contentArea = document.getElementById('modalContent');
-  if (clip.content.type === 'screenshot') {
-    contentArea.innerHTML = `<img src="${clip.content.data}" alt="Screenshot">`;
-  } else if (clip.content.html) {
-    contentArea.innerHTML = clip.content.html;
+  if (clip.content?.type === 'screenshot') {
+    contentArea.textContent = '';
+    const src = clip.content?.data ?? '';
+    const img = document.createElement('img');
+    img.src = /^data:image\/(png|jpeg|gif|webp);base64,/.test(src) ? src : '';
+    img.alt = 'Screenshot';
+    contentArea.appendChild(img);
+  } else if (clip.content?.html) {
+    if (typeof DOMPurify !== 'undefined') {
+      contentArea.innerHTML = DOMPurify.sanitize(clip.content.html, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'svg', 'math'],
+        ALLOW_DATA_ATTR: false,
+        ALLOW_UNKNOWN_PROTOCOLS: false
+      });
+    } else {
+      contentArea.textContent = '[Content sanitizer unavailable — reload the page]';
+    }
   } else {
-    contentArea.textContent = clip.content.data;
+    contentArea.textContent = clip.content?.data ?? '';
   }
   
   modal.classList.add('show');

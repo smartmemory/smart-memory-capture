@@ -9,8 +9,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'highlightSelection') {
-    highlightSelectedText();
-    sendResponse({ success: true });
+    sendResponse(highlightSelectedText());
     return;
   }
 });
@@ -18,25 +17,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Highlight selected text (optional feature)
 function highlightSelectedText() {
   const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-  
+  if (!selection.rangeCount) return { success: false, error: 'No selection' };
+
   const range = selection.getRangeAt(0);
   const span = document.createElement('span');
   span.style.backgroundColor = '#ffeb3b';
   span.style.padding = '2px';
-  
+
   try {
     range.surroundContents(span);
+    return { success: true };
   } catch (e) {
-    console.log('Cannot highlight complex selection');
+    return { success: false, error: e.message };
   }
 }
 
-// Add context menu support (right-click capture)
-document.addEventListener('mouseup', () => {
-  const selection = window.getSelection().toString();
-  if (selection.length > 0) {
-    // Store selection for quick capture
-    chrome.storage.local.set({ lastSelection: selection });
-  }
-});

@@ -34,9 +34,9 @@
       </section>
 
       <section class="settings-section">
-        <h2>Sync Configuration</h2>
-        <p class="section-desc">Configure your external server or API endpoint</p>
-        
+        <h2>SmartMemory Sync</h2>
+        <p class="section-desc">Sync clips to your SmartMemory account. HTTPS required (localhost allowed for development).</p>
+
         <div class="form-group">
           <label>
             <input type="checkbox" id="autoSync">
@@ -45,9 +45,15 @@
         </div>
 
         <div class="form-group">
-          <label for="syncEndpoint">Sync Endpoint URL</label>
-          <input type="url" id="syncEndpoint" placeholder="https://your-server.com/api/clips">
-          <small>Your clips will be sent as POST requests to this endpoint</small>
+          <label for="syncEndpoint">SmartMemory API URL</label>
+          <input type="url" id="syncEndpoint" placeholder="https://api.smartmemory.ai">
+          <small>Must use HTTPS (e.g. https://api.smartmemory.ai). HTTP localhost is allowed for development.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="syncApiToken">API Token</label>
+          <input type="password" id="syncApiToken" placeholder="Paste your SmartMemory API token">
+          <small>Found in your SmartMemory dashboard under Settings → API Keys</small>
         </div>
 
         <button id="testSyncBtn" class="btn-secondary">Test Connection</button>
