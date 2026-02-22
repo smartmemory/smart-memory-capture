@@ -62,11 +62,21 @@
 
       <section class="settings-section">
         <h2>Default Settings</h2>
-        
+
         <div class="form-group">
           <label for="defaultTags">Default Tags</label>
           <input type="text" id="defaultTags" placeholder="e.g., reading, research">
           <small>These tags will be pre-filled when capturing new clips</small>
+        </div>
+
+        <div class="form-group">
+          <label for="duplicatePolicy">Duplicate URL policy</label>
+          <select id="duplicatePolicy">
+            <option value="prompt">Prompt when page is updated</option>
+            <option value="always">Always re-capture (skip check)</option>
+            <option value="never">Never re-capture (always block)</option>
+          </select>
+          <small>What to do when you capture a URL you've already saved</small>
         </div>
       </section>
 

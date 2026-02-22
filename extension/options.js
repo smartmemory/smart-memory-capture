@@ -5,7 +5,8 @@ async function loadSettings() {
     'autoSync',
     'syncEndpoint',
     'syncApiToken',
-    'defaultTags'
+    'defaultTags',
+    'duplicatePolicy'
   ]);
 
   // Set sync mode — whitelist to prevent XSS via querySelector attribute injection
@@ -17,6 +18,10 @@ async function loadSettings() {
   document.getElementById('syncEndpoint').value = settings.syncEndpoint || '';
   document.getElementById('syncApiToken').value = settings.syncApiToken || '';
   document.getElementById('defaultTags').value = settings.defaultTags || '';
+
+  const allowedPolicies = ['prompt', 'always', 'never'];
+  const duplicatePolicy = allowedPolicies.includes(settings.duplicatePolicy) ? settings.duplicatePolicy : 'prompt';
+  document.getElementById('duplicatePolicy').value = duplicatePolicy;
 
   updateStats();
 }
@@ -238,6 +243,10 @@ document.getElementById('syncApiToken').addEventListener('blur', async () => {
 });
 document.getElementById('defaultTags').addEventListener('blur', async () => {
   await chrome.storage.sync.set({ defaultTags: document.getElementById('defaultTags').value });
+  showSaveStatus('Settings saved successfully!', 'success');
+});
+document.getElementById('duplicatePolicy').addEventListener('change', async () => {
+  await chrome.storage.sync.set({ duplicatePolicy: document.getElementById('duplicatePolicy').value });
   showSaveStatus('Settings saved successfully!', 'success');
 });
 document.getElementById('testSyncBtn').addEventListener('click', testSync);

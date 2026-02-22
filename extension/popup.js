@@ -20,11 +20,13 @@ async function init() {
   await checkDuplicate(tab);
 }
 
-// Check if this URL has already been captured. If so, disable capture unless
-// the page's publish date has changed (content updated).
+// Check if this URL has already been captured. Behaviour controlled by duplicatePolicy setting.
 async function checkDuplicate(tab) {
-  const { syncMode, clips = [] } = await chrome.storage.sync.get(['syncMode'])
-    .then(s => chrome.storage.local.get(['clips']).then(l => ({ ...s, ...l })));
+  const { syncMode, duplicatePolicy = 'prompt' } = await chrome.storage.sync.get(['syncMode', 'duplicatePolicy']);
+  const { clips = [] } = await chrome.storage.local.get(['clips']);
+
+  // 'always': skip check entirely — re-capture without any notice
+  if (duplicatePolicy === 'always') return;
 
   // In server-primary mode local cache is partial — skip the check
   if (syncMode === 'server-primary') return;
@@ -32,7 +34,23 @@ async function checkDuplicate(tab) {
   const existing = clips.find(c => c.url === tab.url);
   if (!existing) return;
 
-  // Quickly extract current publish date from the page (no Readability needed)
+  const capturedOn = new Date(existing.timestamp).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  });
+  const noticeEl = document.getElementById('duplicateNotice');
+  const captureBtn = document.getElementById('captureBtn');
+
+  // 'never': always block, no date check needed
+  if (duplicatePolicy === 'never') {
+    noticeEl.textContent = `✓ Already captured on ${capturedOn}`;
+    noticeEl.className = 'duplicate-notice saved';
+    noticeEl.style.display = 'block';
+    captureBtn.disabled = true;
+    captureBtn.classList.add('btn-disabled');
+    return;
+  }
+
+  // 'prompt': check date and decide
   let currentDate = null;
   try {
     const [result] = await chrome.scripting.executeScript({
@@ -60,13 +78,6 @@ async function checkDuplicate(tab) {
   const storedDate = existing.metadata?.published_at ?? null;
   const dateChanged = currentDate && storedDate &&
     new Date(currentDate).getTime() !== new Date(storedDate).getTime();
-
-  const capturedOn = new Date(existing.timestamp).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric'
-  });
-
-  const noticeEl = document.getElementById('duplicateNotice');
-  const captureBtn = document.getElementById('captureBtn');
 
   if (dateChanged) {
     // Content has been updated — show notice and require one confirmation click
