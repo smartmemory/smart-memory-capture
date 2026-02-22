@@ -121,7 +121,10 @@ async function syncToServer(clip, endpoint) {
       ...(meta.word_count && { word_count: meta.word_count }),
       ...(meta.reading_time_minutes && { reading_time_minutes: meta.reading_time_minutes }),
       readability_extracted: clip.content?.readability ?? false,
-      ...(clip.content?.heroImage && { hero_image: clip.content.heroImage })
+      ...(clip.content?.heroImage && { hero_image: clip.content.heroImage }),
+      ...(meta.video_id && { video_id: meta.video_id }),
+      ...(meta.duration_seconds && { duration_seconds: meta.duration_seconds }),
+      ...(clip.content?.hasTranscript !== undefined && { has_transcript: clip.content.hasTranscript })
     }
   };
 

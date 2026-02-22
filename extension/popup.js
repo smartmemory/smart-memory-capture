@@ -102,6 +102,59 @@ async function checkDuplicate(tab) {
   noticeEl.style.display = 'block';
 }
 
+// Detect YouTube video pages
+function isYouTubeVideo(url) {
+  try {
+    const u = new URL(url);
+    return ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname === '/watch')
+      || u.hostname === 'youtu.be';
+  } catch { return false; }
+}
+
+// Runs in MAIN world — accesses ytInitialPlayerResponse global set by YouTube
+function extractYouTubePageData() {
+  const pr = window.ytInitialPlayerResponse;
+  if (!pr) return null;
+
+  const vd = pr.videoDetails ?? {};
+  const tracks = pr.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+
+  // Prefer English; fall back to first available track
+  const track = tracks.find(t => t.languageCode === 'en') ??
+                tracks.find(t => t.languageCode?.startsWith('en')) ??
+                tracks[0] ?? null;
+
+  const duration = parseInt(vd.lengthSeconds ?? '0', 10);
+  const thumbnails = vd.thumbnail?.thumbnails ?? [];
+
+  return {
+    transcriptUrl: track?.baseUrl ?? null,
+    description: (vd.shortDescription ?? '').substring(0, 500),
+    metadata: {
+      author: vd.author ?? null,
+      og_site_name: 'YouTube',
+      og_type: 'video',
+      og_image: thumbnails[thumbnails.length - 1]?.url ?? null,
+      duration_seconds: duration || null,
+      video_id: vd.videoId ?? null
+    }
+  };
+}
+
+// Fetch and parse YouTube transcript XML — returns plain text or null
+async function fetchYouTubeTranscript(transcriptUrl) {
+  try {
+    const resp = await fetch(transcriptUrl);
+    if (!resp.ok) return null;
+    const xml = await resp.text();
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+    return Array.from(doc.querySelectorAll('text'))
+      .map(el => el.textContent.trim())
+      .filter(t => t)
+      .join(' ');
+  } catch { return null; }
+}
+
 // Capture content based on selected mode
 async function captureContent() {
   const tab = await getCurrentTab();
@@ -116,12 +169,42 @@ async function captureContent() {
   try {
     let content;
     let metadata = {};
+    let captureMode = mode; // may be overridden for specialised pages
 
     if (mode === 'screenshot') {
       const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: 'png' });
       content = { type: 'screenshot', data: dataUrl };
+    } else if (mode !== 'selection' && isYouTubeVideo(tab.url)) {
+      // YouTube path — runs in MAIN world to access ytInitialPlayerResponse
+      statusEl.textContent = 'Fetching transcript…';
+      const [ytResult] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: extractYouTubePageData,
+        world: 'MAIN'
+      });
+      const ytData = ytResult.result;
+
+      const transcript = ytData?.transcriptUrl
+        ? await fetchYouTubeTranscript(ytData.transcriptUrl) : null;
+
+      content = {
+        type: 'video',
+        data: transcript ?? ytData?.description ?? '',
+        html: null,
+        hasTranscript: !!transcript
+      };
+      metadata = ytData?.metadata ?? {};
+      if (transcript) {
+        metadata.word_count = (transcript.match(/\S+/g) || []).length;
+        metadata.reading_time_minutes = Math.ceil(metadata.word_count / 200);
+      }
+      captureMode = 'video';
+
+      // Inline thumbnail as heroImage
+      const heroImage = await fetchHeroImage(metadata, null, tab.url);
+      if (heroImage) content.heroImage = heroImage;
     } else {
-      // Inject content capture function into page — returns raw HTML + metadata
+      // General path — inject content capture function into page
       const [result] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: capturePageContent,
@@ -169,7 +252,7 @@ async function captureContent() {
       id: crypto.randomUUID(),
       title: tab.title,
       url: tab.url,
-      mode: mode,
+      mode: captureMode,
       content: content,
       tags: tags.split(',').map(t => t.trim()).filter(t => t),
       notes: notes,

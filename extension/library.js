@@ -173,8 +173,9 @@ function createClipCard(clip) {
     ? `<span class="clip-author">${escapeHtml(clip.metadata.author)}</span>` : '';
   const siteName = clip.metadata?.og_site_name
     ? `<span class="clip-site">${escapeHtml(clip.metadata.og_site_name)}</span>` : '';
+  const isVideo = clip.content?.type === 'video';
   const readingTime = clip.metadata?.reading_time_minutes
-    ? `<span class="clip-reading-time">${clip.metadata.reading_time_minutes} min read</span>` : '';
+    ? `<span class="clip-reading-time">${isVideo ? '▶' : ''} ${clip.metadata.reading_time_minutes} min${isVideo ? ' transcript' : ' read'}</span>` : '';
 
   return `
     <div class="clip-card" data-clip-id="${escapeHtml(clip.id)}">
