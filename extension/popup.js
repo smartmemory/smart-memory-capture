@@ -178,6 +178,41 @@ async function fetchYouTubeTranscript(transcriptUrl) {
   } catch { return null; }
 }
 
+// Detect known code-hosting URLs — returns site type string or null (CAP-ENH-1e)
+function isCodeUrl(url) {
+  try {
+    const u = new URL(url);
+    const h = u.hostname;
+    if (h === 'gist.github.com') return 'gist';
+    if (h === 'github.com') {
+      const parts = u.pathname.split('/').filter(Boolean);
+      if (parts.length >= 5 && parts[2] === 'blob') return 'github-file';
+      if (parts.length >= 2) return 'github-repo';
+    }
+    if (h === 'stackoverflow.com' || h.endsWith('.stackexchange.com')) {
+      if (u.pathname.startsWith('/questions/')) return 'stackoverflow';
+    }
+    return null;
+  } catch { return null; }
+}
+
+// Fetch raw GitHub file content by rewriting blob URL → raw.githubusercontent.com (CAP-ENH-1e)
+// The raw hostname is always hard-coded here — it is not derived from user or page input.
+async function fetchGitHubRaw(tabUrl) {
+  try {
+    const u = new URL(tabUrl);
+    if (u.hostname !== 'github.com') return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    // Expected shape: [user, repo, 'blob', branch, ...path]
+    if (parts.length < 5 || parts[2] !== 'blob') return null;
+    const [user, repo, , branch, ...pathParts] = parts;
+    const rawUrl = `https://raw.githubusercontent.com/${user}/${repo}/${branch}/${pathParts.join('/')}`;
+    const resp = await fetch(rawUrl);
+    if (!resp.ok) return null;
+    return await resp.text();
+  } catch { return null; }
+}
+
 // Capture content based on selected mode
 async function captureContent() {
   const tab = await getCurrentTab();
@@ -239,34 +274,59 @@ async function captureContent() {
         content = { type: 'text', data: raw.data, html: null };
         metadata = raw.metadata ?? {};
       } else {
-        // Run Readability in popup context (no page pollution, safe DOMParser sandbox)
-        const article = extractWithReadability(raw.rawHtml, tab.url);
-        if (article && (article.textContent?.trim().length ?? 0) > 100) {
-          content = {
-            type: 'html',
-            data: article.textContent,
-            html: article.content,
-            readability: true
-          };
-          // Readability byline as author fallback
-          if (article.byline && !raw.metadata?.author) {
-            raw.metadata = raw.metadata ?? {};
-            raw.metadata.author = article.byline;
-          }
-        } else {
-          // Readability returned nothing useful — fall back to plain innerText
-          content = {
-            type: 'html',
-            data: raw.innerText,
-            html: null,
-            readability: false
-          };
-        }
-        metadata = raw.metadata ?? {};
+        // Code path (CAP-ENH-1e): known code URL or content heuristics
+        const siteType = isCodeUrl(tab.url);
+        const useCodePath = siteType === 'github-file' || siteType === 'stackoverflow' ||
+                            siteType === 'gist' || raw.codeBlocks?.isCode;
 
-        // Fetch hero image in popup context (non-blocking — skip silently on failure)
-        const heroImage = await fetchHeroImage(metadata, raw.rawHtml, tab.url);
-        if (heroImage) content.heroImage = heroImage;
+        if (useCodePath) {
+          if (siteType === 'github-file') statusEl.textContent = 'Fetching raw file…';
+          let codeText = raw.codeBlocks?.data ?? '';
+          if (siteType === 'github-file') {
+            // Raw URL always returns the full file; DOM is truncated for large files
+            const rawContent = await fetchGitHubRaw(tab.url);
+            if (rawContent) {
+              const lang = raw.codeBlocks?.langs?.[0] ?? '';
+              codeText = '```' + lang + '\n' + rawContent + '\n```';
+            }
+          }
+          content = { type: 'text', data: codeText, html: null };
+          metadata = {
+            ...raw.metadata,
+            schema_type: siteType ?? 'code',
+            code_languages: raw.codeBlocks?.langs ?? []
+          };
+          captureMode = 'code';
+        } else {
+          // Run Readability in popup context (no page pollution, safe DOMParser sandbox)
+          const article = extractWithReadability(raw.rawHtml, tab.url);
+          if (article && (article.textContent?.trim().length ?? 0) > 100) {
+            content = {
+              type: 'html',
+              data: article.textContent,
+              html: article.content,
+              readability: true
+            };
+            // Readability byline as author fallback
+            if (article.byline && !raw.metadata?.author) {
+              raw.metadata = raw.metadata ?? {};
+              raw.metadata.author = article.byline;
+            }
+          } else {
+            // Readability returned nothing useful — fall back to plain innerText
+            content = {
+              type: 'html',
+              data: raw.innerText,
+              html: null,
+              readability: false
+            };
+          }
+          metadata = raw.metadata ?? {};
+
+          // Fetch hero image in popup context (non-blocking — skip silently on failure)
+          const heroImage = await fetchHeroImage(metadata, raw.rawHtml, tab.url);
+          if (heroImage) content.heroImage = heroImage;
+        }
       }
     }
 
@@ -460,11 +520,129 @@ function capturePageContent(mode) {
     reading_time_minutes: Math.ceil(wordCount / 200)
   };
 
+  // CAP-ENH-1e: code detection and extraction
+  // All helpers are defined inside capturePageContent because this function is serialized
+  // and injected into the page — no closure references survive the executeScript boundary.
+
+  function inferLang(pre) {
+    const code = pre.querySelector('code') ?? pre;
+    const cls = (code.className ?? '') + ' ' + (pre.className ?? '');
+    const m = cls.match(/\b(?:language|lang|hljs)-([\w-]+)\b/i);
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  // Find the last h1-h4 that precedes `el` in document order
+  function nearestHeading(el) {
+    let result = '';
+    for (const h of document.querySelectorAll('h1,h2,h3,h4')) {
+      if (h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) result = h.textContent.trim();
+    }
+    return result;
+  }
+
+  // Walk prev/next siblings to find the nearest <p> without crossing another <pre>
+  function nearestP(el, dir) {
+    let node = dir === 'prev' ? el.previousElementSibling : el.nextElementSibling;
+    while (node) {
+      if (node.tagName === 'P') return node.textContent.trim().substring(0, 200);
+      if (node.tagName === 'PRE') break;
+      node = dir === 'prev' ? node.previousElementSibling : node.nextElementSibling;
+    }
+    return '';
+  }
+
+  // Serialize a DOM subtree to readable Markdown, preserving fenced code blocks
+  function serializeToMd(el) {
+    const parts = [];
+    function walk(n) {
+      if (n.nodeType === 3) { const t = n.textContent.trim(); if (t) parts.push(t); return; }
+      if (n.nodeName === 'PRE') {
+        const c = n.querySelector('code') ?? n;
+        const cls = (c.className ?? '') + ' ' + (n.className ?? '');
+        const lm = cls.match(/\b(?:language|lang|hljs)-([\w-]+)\b/i);
+        parts.push('```' + (lm ? lm[1].toLowerCase() : '') + '\n' + c.textContent.trim() + '\n```');
+        return;
+      }
+      if (/^H[1-4]$/.test(n.nodeName)) { parts.push('### ' + n.textContent.trim()); return; }
+      if (n.nodeName === 'P') { parts.push(n.textContent.trim()); return; }
+      if (/^[UO]L$/.test(n.nodeName)) {
+        for (const li of n.querySelectorAll('li')) parts.push('- ' + li.textContent.trim());
+        return;
+      }
+      for (const child of n.childNodes) walk(child);
+    }
+    walk(el);
+    return parts.filter(Boolean).join('\n\n');
+  }
+
+  const _preBlocks = Array.from(document.querySelectorAll('pre'));
+  let _totalCodeChars = 0, _maxLines = 0;
+  const _codelangs = new Set();
+  for (const pre of _preBlocks) {
+    const code = pre.querySelector('code') ?? pre;
+    const text = code.textContent ?? '';
+    _totalCodeChars += text.length;
+    const lines = (text.match(/\n/g) ?? []).length + 1;
+    if (lines > _maxLines) _maxLines = lines;
+    const lang = inferLang(pre);
+    if (lang) _codelangs.add(lang);
+  }
+  const _bodyLen = (document.body.textContent ?? '').length;
+  const _codeRatio = _bodyLen > 0 ? _totalCodeChars / _bodyLen : 0;
+  const _isCode = _preBlocks.length >= 2 || _maxLines >= 15 || _codeRatio >= 0.20;
+
+  let _codeData = null;
+  if (_isCode) {
+    const _host = window.location.hostname;
+    const _isSO = _host === 'stackoverflow.com' || _host.endsWith('.stackexchange.com');
+    if (_isSO) {
+      const sections = [];
+      const qBody = document.querySelector('.question [itemprop="text"]');
+      if (qBody) sections.push('## Question\n\n' + serializeToMd(qBody));
+      const aAccepted = document.querySelector('.accepted-answer [itemprop="text"]');
+      if (aAccepted) {
+        const score = document.querySelector('.accepted-answer .js-vote-count')?.textContent?.trim() ?? '?';
+        sections.push('## Accepted Answer (↑ ' + score + ')\n\n' + serializeToMd(aAccepted));
+      }
+      const extras = [...document.querySelectorAll('.answer:not(.accepted-answer)')]
+        .map(el => ({ el, score: parseInt(el.querySelector('.js-vote-count')?.textContent ?? '0', 10) }))
+        .filter(a => a.score > 10)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 2);
+      for (const { el, score } of extras) {
+        const body = el.querySelector('[itemprop="text"]');
+        if (body) sections.push('## Answer (↑ ' + score + ')\n\n' + serializeToMd(body));
+      }
+      _codeData = sections.join('\n\n---\n\n');
+    } else {
+      // Generic: extract each <pre> block with surrounding heading and context
+      const blocks = [];
+      for (const pre of _preBlocks) {
+        const code = pre.querySelector('code') ?? pre;
+        const codeText = code.textContent.trim();
+        if (!codeText) continue;
+        const lang = inferLang(pre);
+        const heading = nearestHeading(pre);
+        const preceding = nearestP(pre, 'prev');
+        const following = nearestP(pre, 'next');
+        const parts = [];
+        if (heading) parts.push('## ' + heading);
+        if (preceding) parts.push(preceding);
+        parts.push('```' + lang + '\n' + codeText + '\n```');
+        if (following) parts.push(following);
+        blocks.push(parts.join('\n\n'));
+      }
+      _codeData = blocks.join('\n\n---\n\n');
+    }
+  }
+  // --- end CAP-ENH-1e ---
+
   return {
     type: 'html',
     rawHtml: document.documentElement.outerHTML,
     innerText: document.body.innerText,
-    metadata
+    metadata,
+    codeBlocks: { isCode: _isCode, data: _codeData, count: _preBlocks.length, langs: Array.from(_codelangs) }
   };
 }
 
