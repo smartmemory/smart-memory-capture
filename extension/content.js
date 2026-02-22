@@ -5,14 +5,14 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getSelection') {
     sendResponse({ selection: window.getSelection().toString() });
+    return;
   }
-  
+
   if (request.action === 'highlightSelection') {
     highlightSelectedText();
     sendResponse({ success: true });
+    return;
   }
-  
-  return true;
 });
 
 // Highlight selected text (optional feature)
