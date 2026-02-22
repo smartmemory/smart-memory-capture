@@ -94,6 +94,7 @@ async function syncToServer(clip, endpoint) {
   }
 
   // Map to SmartMemory ingest shape — never send raw HTML to the server
+  const meta = clip.metadata ?? {};
   const payload = {
     content: clip.content?.data ?? '',
     memory_type: 'episodic',
@@ -102,7 +103,16 @@ async function syncToServer(clip, endpoint) {
       title: clip.title,
       tags: clip.tags || [],
       captured_at: clip.timestamp,
-      capture_mode: clip.mode
+      capture_mode: clip.mode,
+      // Rich metadata from CAP-ENH-1a
+      ...(meta.author && { author: meta.author }),
+      ...(meta.published_at && { published_at: meta.published_at }),
+      ...(meta.og_site_name && { site_name: meta.og_site_name }),
+      ...(meta.og_type && { content_type: meta.og_type }),
+      ...(meta.og_description && { description: meta.og_description }),
+      ...(meta.word_count && { word_count: meta.word_count }),
+      ...(meta.reading_time_minutes && { reading_time_minutes: meta.reading_time_minutes }),
+      readability_extracted: clip.content?.readability ?? false
     }
   };
 

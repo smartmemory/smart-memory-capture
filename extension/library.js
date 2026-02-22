@@ -160,11 +160,19 @@ function createClipCard(clip) {
 
   const tagsHtml = (clip.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('');
   
+  const author = clip.metadata?.author
+    ? `<span class="clip-author">${escapeHtml(clip.metadata.author)}</span>` : '';
+  const siteName = clip.metadata?.og_site_name
+    ? `<span class="clip-site">${escapeHtml(clip.metadata.og_site_name)}</span>` : '';
+  const readingTime = clip.metadata?.reading_time_minutes
+    ? `<span class="clip-reading-time">${clip.metadata.reading_time_minutes} min read</span>` : '';
+
   return `
     <div class="clip-card" data-clip-id="${escapeHtml(clip.id)}">
       <div class="clip-header">
         <div class="clip-title">${escapeHtml(clip.title)}</div>
         <div class="clip-url">${escapeHtml(clip.url)}</div>
+        ${author || siteName ? `<div class="clip-byline">${author}${author && siteName ? ' · ' : ''}${siteName}</div>` : ''}
       </div>
       <div class="clip-body">
         <div class="clip-preview">${preview}</div>
@@ -172,6 +180,7 @@ function createClipCard(clip) {
       </div>
       <div class="clip-footer">
         <span class="clip-date">${date}</span>
+        ${readingTime}
         <span class="clip-type">${escapeHtml(clip.mode)}</span>
       </div>
     </div>
@@ -205,7 +214,28 @@ function showClipModal(clip) {
   });
   document.getElementById('modalDate').textContent = date;
   document.getElementById('modalType').textContent = clip.mode;
-  
+
+  // Rich metadata (CAP-ENH-1a)
+  const metaEl = document.getElementById('modalMetaContainer');
+  if (metaEl) {
+    const parts = [];
+    if (clip.metadata?.author) parts.push(`By ${clip.metadata.author}`);
+    if (clip.metadata?.og_site_name) parts.push(clip.metadata.og_site_name);
+    if (clip.metadata?.published_at) {
+      try {
+        const pub = new Date(clip.metadata.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        parts.push(`Published ${pub}`);
+      } catch { /* ignore invalid date */ }
+    }
+    if (clip.metadata?.reading_time_minutes) parts.push(`${clip.metadata.reading_time_minutes} min read`);
+    if (parts.length > 0) {
+      metaEl.style.display = 'block';
+      metaEl.textContent = parts.join(' · ');
+    } else {
+      metaEl.style.display = 'none';
+    }
+  }
+
   // Tags
   if ((clip.tags || []).length > 0) {
     document.getElementById('modalTagsContainer').style.display = 'block';

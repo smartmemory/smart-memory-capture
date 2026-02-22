@@ -7,10 +7,10 @@ async function getCurrentTab() {
 // Initialize popup
 async function init() {
   const tab = await getCurrentTab();
-  
+
   document.getElementById('pageTitle').textContent = tab.title || 'Untitled';
   document.getElementById('pageUrl').textContent = tab.url;
-  
+
   // Load saved preferences
   const { defaultTags } = await chrome.storage.sync.get(['defaultTags']);
   if (defaultTags) {
@@ -24,31 +24,58 @@ async function captureContent() {
   const mode = document.querySelector('input[name="captureMode"]:checked').value;
   const tags = document.getElementById('tags').value;
   const notes = document.getElementById('notes').value;
-  
+
   const statusEl = document.getElementById('status');
   statusEl.textContent = 'Capturing...';
   statusEl.className = 'status';
-  
+
   try {
     let content;
-    
+    let metadata = {};
+
     if (mode === 'screenshot') {
-      // Capture screenshot
       const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: 'png' });
-      content = {
-        type: 'screenshot',
-        data: dataUrl
-      };
+      content = { type: 'screenshot', data: dataUrl };
     } else {
-      // Inject content script and get content
+      // Inject content capture function into page — returns raw HTML + metadata
       const [result] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: capturePageContent,
         args: [mode]
       });
-      content = result.result;
+      const raw = result.result;
+
+      if (raw.type === 'selection') {
+        content = { type: 'text', data: raw.data, html: null };
+        metadata = raw.metadata ?? {};
+      } else {
+        // Run Readability in popup context (no page pollution, safe DOMParser sandbox)
+        const article = extractWithReadability(raw.rawHtml, tab.url);
+        if (article && (article.textContent?.trim().length ?? 0) > 100) {
+          content = {
+            type: 'html',
+            data: article.textContent,
+            html: article.content,
+            readability: true
+          };
+          // Readability byline as author fallback
+          if (article.byline && !raw.metadata?.author) {
+            raw.metadata = raw.metadata ?? {};
+            raw.metadata.author = article.byline;
+          }
+        } else {
+          // Readability returned nothing useful — fall back to plain innerText
+          content = {
+            type: 'html',
+            data: raw.innerText,
+            html: null,
+            readability: false
+          };
+        }
+        metadata = raw.metadata ?? {};
+      }
     }
-    
+
     // Create clip object
     const clip = {
       id: crypto.randomUUID(),
@@ -59,21 +86,22 @@ async function captureContent() {
       tags: tags.split(',').map(t => t.trim()).filter(t => t),
       notes: notes,
       timestamp: new Date().toISOString(),
-      favicon: tab.favIconUrl
+      favicon: tab.favIconUrl,
+      metadata: metadata
     };
-    
+
     // Save to storage
     await saveClip(clip);
-    
+
     statusEl.textContent = '✓ Saved successfully!';
     statusEl.className = 'status success';
-    
+
     // Clear form after 1.5 seconds
     setTimeout(() => {
       document.getElementById('notes').value = '';
       statusEl.textContent = '';
     }, 1500);
-    
+
   } catch (error) {
     console.error('Capture error:', error);
     statusEl.textContent = '✗ Error: ' + error.message;
@@ -81,88 +109,112 @@ async function captureContent() {
   }
 }
 
-// Function to inject into page for content capture
+// Run Readability in popup context using DOMParser — never injected into the page
+function extractWithReadability(rawHtml, pageUrl) {
+  if (typeof Readability === 'undefined') return null;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHtml, 'text/html');
+    // Set base URL so Readability can resolve relative links
+    const base = doc.createElement('base');
+    base.href = pageUrl;
+    doc.head.prepend(base);
+    return new Readability(doc).parse();
+  } catch {
+    return null;
+  }
+}
+
+// Injected into page — must be self-contained (no closure references)
+// Returns raw HTML + structured metadata for processing in popup context
 function capturePageContent(mode) {
   if (mode === 'selection') {
     const selection = window.getSelection().toString();
     if (!selection) {
       throw new Error('No text selected. Please select some text first.');
     }
-    return {
-      type: 'text',
-      data: selection,
-      html: null
-    };
+    return { type: 'selection', data: selection, metadata: {} };
   }
-  
-  if (mode === 'article') {
-    // Try to find main article content
-    const article = document.querySelector('article') || 
-                   document.querySelector('[role="main"]') ||
-                   document.querySelector('main') ||
-                   document.querySelector('.article') ||
-                   document.querySelector('.post-content');
-    
-    if (article) {
-      return {
-        type: 'html',
-        data: article.innerText,
-        html: article.innerHTML
-      };
+
+  // Metadata helpers
+  const getMeta = (selector) => document.querySelector(selector)?.content ?? null;
+  const getOg = (prop) => getMeta(`meta[property="${prop}"]`);
+
+  // Publish date: og/article tag → JSON-LD → <time datetime>
+  let publishedAt = getOg('article:published_time');
+  if (!publishedAt) {
+    for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        const data = JSON.parse(script.textContent);
+        const items = Array.isArray(data) ? data : [data, ...(data['@graph'] ?? [])];
+        for (const item of items) {
+          if (item.datePublished) { publishedAt = item.datePublished; break; }
+        }
+      } catch { /* ignore malformed JSON-LD */ }
+      if (publishedAt) break;
     }
-    // Fallback to full page if no article found
   }
-  
-  // Full page capture
+  if (!publishedAt) {
+    publishedAt = document.querySelector('time[datetime]')?.getAttribute('datetime') ?? null;
+  }
+
+  const wordCount = (document.body.innerText.trim().match(/\S+/g) || []).length;
+
+  const metadata = {
+    og_title: getOg('og:title'),
+    og_description: getOg('og:description'),
+    og_image: getOg('og:image'),
+    og_type: getOg('og:type'),
+    og_site_name: getOg('og:site_name'),
+    author: getMeta('meta[name="author"]'),
+    description: getMeta('meta[name="description"]'),
+    published_at: publishedAt,
+    word_count: wordCount,
+    reading_time_minutes: Math.ceil(wordCount / 200)
+  };
+
   return {
     type: 'html',
-    data: document.body.innerText,
-    html: document.body.innerHTML
+    rawHtml: document.documentElement.outerHTML,
+    innerText: document.body.innerText,
+    metadata
   };
 }
 
 // Save clip to storage
 async function saveClip(clip) {
   const { syncMode, syncEndpoint } = await chrome.storage.sync.get(['syncMode', 'syncEndpoint']);
-  
+
   if (syncMode === 'server-primary' && syncEndpoint) {
-    // Server-first mode: Send to server, only cache locally on success
-    const response = await chrome.runtime.sendMessage({ 
-      action: 'syncToServer', 
-      clip: clip 
+    // Server-first mode: send to server, only cache locally on success
+    const response = await chrome.runtime.sendMessage({
+      action: 'syncToServer',
+      clip: clip
     });
-    
+
     if (response && response.success) {
-      // Only cache locally after successful server save
       await cacheClipLocally(clip);
     } else {
       throw new Error(response?.error || 'Failed to save to server');
     }
   } else {
-    // Local-first mode (default): Save locally, then optionally sync
+    // Local-first mode (default): save locally, then optionally sync
     await cacheClipLocally(clip);
-    
-    // Send to background for potential sync
-    chrome.runtime.sendMessage({ 
-      action: 'clipSaved', 
-      clip: clip 
-    });
+    chrome.runtime.sendMessage({ action: 'clipSaved', clip: clip });
   }
 }
 
-// Cache clip in local storage (for offline access or as spool)
+// Cache clip in local storage (offline access or sync spool)
 async function cacheClipLocally(clip) {
   const { clips = [] } = await chrome.storage.local.get(['clips']);
   clips.unshift(clip);
-  
-  // Keep only last 100 clips in local cache when in server-primary mode
+
   const { syncMode } = await chrome.storage.sync.get(['syncMode']);
   const maxCache = syncMode === 'server-primary' ? 100 : 1000;
-  
   if (clips.length > maxCache) {
     clips.splice(maxCache);
   }
-  
+
   await chrome.storage.local.set({ clips });
 }
 
