@@ -51,3 +51,7 @@ package-lock.json
 .claude/
 !.claude/rules/
 !.claude/commands/
+
+# Local secrets
+.secrets
+.act.secrets
