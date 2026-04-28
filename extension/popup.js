@@ -213,6 +213,18 @@ async function fetchGitHubRaw(tabUrl) {
   } catch { return null; }
 }
 
+// Request host permissions for enhanced capture (hero images, transcripts, raw code)
+// Called from a user gesture (button click) so chrome.permissions.request() is allowed.
+// Fails silently — capture degrades gracefully without host permissions.
+async function ensureHostPermissions() {
+  try {
+    const granted = await chrome.permissions.contains({ origins: ['https://*/*'] });
+    if (!granted) {
+      await chrome.permissions.request({ origins: ['https://*/*', 'http://*/*'] });
+    }
+  } catch { /* user declined or API unavailable — capture still works for basic modes */ }
+}
+
 // Capture content based on selected mode
 async function captureContent() {
   const tab = await getCurrentTab();
@@ -225,6 +237,8 @@ async function captureContent() {
   statusEl.className = 'status';
 
   try {
+    // Request host permissions on first capture for enhanced features
+    await ensureHostPermissions();
     let content;
     let metadata = {};
     let captureMode = mode; // may be overridden for specialised pages
@@ -271,7 +285,7 @@ async function captureContent() {
       const raw = result.result;
 
       if (raw.type === 'selection') {
-        content = { type: 'text', data: raw.data, html: null };
+        content = { type: 'text', data: raw.data, html: raw.html ?? null };
         metadata = raw.metadata ?? {};
       } else {
         // Code path (CAP-ENH-1e): known code URL or content heuristics
@@ -313,11 +327,23 @@ async function captureContent() {
               raw.metadata.author = article.byline;
             }
           } else {
-            // Readability returned nothing useful — fall back to plain innerText
+            // Readability returned nothing useful — fall back to body HTML
+            // Try to extract main content area; if not found, use full body
+            let fallbackHtml = null;
+            try {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(raw.rawHtml, 'text/html');
+              const base = doc.createElement('base');
+              base.href = tab.url;
+              doc.head.prepend(base);
+              // Prefer semantic main content containers
+              const main = doc.querySelector('main, article, [role="main"]');
+              fallbackHtml = (main ?? doc.body).innerHTML;
+            } catch { /* fall back to text-only */ }
             content = {
               type: 'html',
               data: raw.innerText,
-              html: null,
+              html: fallbackHtml,
               readability: false
             };
           }
@@ -458,11 +484,24 @@ function extractWithReadability(rawHtml, pageUrl) {
 // Returns raw HTML + structured metadata for processing in popup context
 function capturePageContent(mode) {
   if (mode === 'selection') {
-    const selection = window.getSelection().toString();
-    if (!selection) {
+    const sel = window.getSelection();
+    const text = sel.toString();
+    if (!text) {
       throw new Error('No text selected. Please select some text first.');
     }
-    return { type: 'selection', data: selection, metadata: {} };
+    // Capture HTML fragment to preserve formatting (bold, links, lists)
+    let html = null;
+    try {
+      if (sel.rangeCount > 0) {
+        const container = document.createElement('div');
+        for (let i = 0; i < sel.rangeCount; i++) {
+          container.appendChild(sel.getRangeAt(i).cloneContents());
+        }
+        const rawHtml = container.innerHTML.trim();
+        if (rawHtml && rawHtml !== text) html = rawHtml;
+      }
+    } catch { /* fall back to text-only */ }
+    return { type: 'selection', data: text, html, metadata: {} };
   }
 
   // Metadata helpers

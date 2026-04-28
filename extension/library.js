@@ -264,6 +264,7 @@ function showClipModal(clip) {
   
   // Content
   const contentArea = document.getElementById('modalContent');
+  contentArea.classList.remove('plain-text');
   if (clip.content?.type === 'screenshot') {
     contentArea.textContent = '';
     const src = clip.content?.data ?? '';
@@ -281,9 +282,17 @@ function showClipModal(clip) {
       });
     } else {
       contentArea.textContent = '[Content sanitizer unavailable — reload the page]';
+      contentArea.classList.add('plain-text');
     }
   } else {
-    contentArea.textContent = clip.content?.data ?? '';
+    // Render fenced code blocks (```lang ... ```) as <pre><code> elements
+    const text = clip.content?.data ?? '';
+    if (text.includes('```')) {
+      contentArea.innerHTML = renderMarkdownCodeBlocks(text);
+    } else {
+      contentArea.textContent = text;
+      contentArea.classList.add('plain-text');
+    }
   }
   
   modal.classList.add('show');
@@ -359,6 +368,67 @@ function setupEventListeners() {
       document.getElementById('clipModal').classList.remove('show');
     }
   });
+}
+
+// Render text containing fenced code blocks (```lang ... ```) as HTML
+// Non-code sections render as paragraphs with preserved whitespace.
+function renderMarkdownCodeBlocks(text) {
+  const parts = [];
+  const lines = text.split('\n');
+  let inCode = false;
+  let codeLang = '';
+  let codeLines = [];
+  let textBuffer = [];
+
+  function flushText() {
+    const t = textBuffer.join('\n').trim();
+    if (t) {
+      // Split on --- separators, render as paragraphs
+      const sections = t.split(/\n---\n/);
+      for (const section of sections) {
+        const trimmed = section.trim();
+        if (trimmed) {
+          // Convert ## headings to <h3>
+          const withHeadings = escapeHtml(trimmed).replace(
+            /^#{1,4}\s+(.+)$/gm,
+            (_, heading) => `</p><h3>${heading}</h3><p>`
+          );
+          parts.push(`<p style="white-space:pre-wrap">${withHeadings}</p>`);
+        }
+        if (sections.length > 1) parts.push('<hr>');
+      }
+      if (sections.length > 1) parts.pop(); // remove trailing <hr>
+    }
+    textBuffer = [];
+  }
+
+  for (const line of lines) {
+    if (!inCode && line.startsWith('```')) {
+      flushText();
+      inCode = true;
+      codeLang = line.slice(3).trim();
+      codeLines = [];
+    } else if (inCode && line.startsWith('```')) {
+      const escaped = escapeHtml(codeLines.join('\n'));
+      const langAttr = codeLang ? ` data-lang="${escapeHtml(codeLang)}"` : '';
+      const langLabel = codeLang ? `<span class="code-lang">${escapeHtml(codeLang)}</span>` : '';
+      parts.push(`<div class="code-block">${langLabel}<pre${langAttr}><code>${escaped}</code></pre></div>`);
+      inCode = false;
+      codeLang = '';
+    } else if (inCode) {
+      codeLines.push(line);
+    } else {
+      textBuffer.push(line);
+    }
+  }
+  // Flush remaining text (or unclosed code block)
+  if (inCode) {
+    codeLines.unshift('```' + codeLang);
+    textBuffer.push(...codeLines);
+  }
+  flushText();
+
+  return parts.join('\n');
 }
 
 // Utility function to escape HTML

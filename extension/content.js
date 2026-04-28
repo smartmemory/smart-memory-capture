@@ -1,4 +1,10 @@
-// Content script - runs on all pages
+// Content script - injected on demand via chrome.scripting.executeScript
+
+// Guard against duplicate injection (context menu can fire multiple times)
+if (window.__smartMemoryCaptureLoaded) {
+  // Already loaded — skip re-registration
+} else {
+window.__smartMemoryCaptureLoaded = true;
 
 // Listen for messages from popup or background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -190,3 +196,5 @@ function showCaptureSheet(selectionText, defaultTags) {
     if (e.key === 'Escape') { host.remove(); document.removeEventListener('keydown', onKey); }
   });
 }
+
+} // end idempotency guard

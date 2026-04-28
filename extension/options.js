@@ -125,6 +125,21 @@ async function testSync() {
     return;
   }
 
+  // Request host permission for the sync endpoint origin (user gesture context)
+  try {
+    const origin = new URL(endpoint).origin + '/*';
+    const granted = await chrome.permissions.request({ origins: [origin] });
+    if (!granted) {
+      statusEl.textContent = '✗ Permission denied — cannot connect to this endpoint';
+      statusEl.className = 'status-message error show';
+      return;
+    }
+  } catch {
+    statusEl.textContent = '✗ Failed to request host permission';
+    statusEl.className = 'status-message error show';
+    return;
+  }
+
   statusEl.textContent = 'Testing connection...';
   statusEl.className = 'status-message show';
 

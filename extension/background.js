@@ -108,6 +108,17 @@ async function syncToServer(clip, endpoint) {
     headers['Authorization'] = `Bearer ${syncApiToken}`;
   }
 
+  // Verify we have host permission for the sync endpoint
+  try {
+    const origin = new URL(endpoint).origin + '/*';
+    const hasPermission = await chrome.permissions.contains({ origins: [origin] });
+    if (!hasPermission) {
+      return { success: false, error: 'Host permission not granted. Open Settings and test the connection to grant access.' };
+    }
+  } catch {
+    return { success: false, error: 'Invalid sync endpoint URL' };
+  }
+
   // Map to SmartMemory ingest shape — never send raw HTML to the server
   const meta = clip.metadata ?? {};
   const payload = {
@@ -155,9 +166,19 @@ async function syncToServer(clip, endpoint) {
   }
 }
 
-// Context menu click handler — show inline capture sheet (CAP-ENH-1h)
+// Context menu click handler — inject content script on demand, then show capture sheet (CAP-ENH-1h)
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'captureSelection') {
+    // Inject content script on demand — activeTab grants permission on context menu click
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js']
+      });
+    } catch (err) {
+      console.error('Failed to inject content script:', err);
+      return;
+    }
     const { defaultTags = '' } = await chrome.storage.sync.get(['defaultTags']);
     chrome.tabs.sendMessage(tab.id, {
       action: 'showCaptureSheet',
