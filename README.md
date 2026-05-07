@@ -1,5 +1,7 @@
 # 📋 Smart Memory Capture
 
+**Version:** 0.4.0
+
 A Chrome extension similar to OneNote Web Clipper that lets you capture web content and save it to your own storage instead of Microsoft's cloud.
 
 ## ✨ Features
@@ -219,3 +221,7 @@ This is a personal project, but feel free to fork and customize for your needs!
 ---
 
 **Made with ❤️ for people who want to own their data**
+
+## Documentation
+
+Full SmartMemory documentation: https://docs.smartmemory.ai
