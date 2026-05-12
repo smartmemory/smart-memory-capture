@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SmartMemory</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app">
+    <header>
+      <h1>SmartMemory</h1>
+      <button id="settings-btn" aria-label="Settings">⚙️</button>
+    </header>
+
+    <section id="share-form" hidden>
+      <div class="meta" id="meta"></div>
+      <label>
+        Title
+        <input id="title" type="text" autocomplete="off" />
+      </label>
+      <label>
+        URL
+        <input id="url" type="url" autocomplete="off" />
+      </label>
+      <label>
+        Content
+        <textarea id="content" rows="4"></textarea>
+      </label>
+      <label>
+        Tags (comma-separated)
+        <input id="tags" type="text" autocomplete="off" placeholder="e.g. research, ai" />
+      </label>
+      <label>
+        Note
+        <textarea id="notes" rows="2" placeholder="Why are you saving this?"></textarea>
+      </label>
+      <div class="actions">
+        <button id="cancel-btn" type="button">Cancel</button>
+        <button id="save-btn" type="button" class="primary">Save</button>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="settings-form" hidden>
+      <h2>Settings</h2>
+      <label>
+        API endpoint
+        <input id="api-url" type="url" placeholder="https://capture.smartmemory.ai" />
+      </label>
+      <label>
+        Device token
+        <input id="api-token" type="password" autocomplete="off" />
+        <small>Pair from <a href="#" id="pair-link">capture.smartmemory.ai/pair</a> on desktop and paste the token here.</small>
+      </label>
+      <div class="actions">
+        <button id="settings-cancel" type="button">Cancel</button>
+        <button id="settings-save" type="button" class="primary">Save settings</button>
+      </div>
+    </section>
+
+    <section id="empty-state" hidden>
+      <p>SmartMemory is your share target. Open any app, tap <strong>Share</strong>, and pick <strong>SmartMemory</strong>.</p>
+      <p class="muted">Configure your API endpoint and device token in <button class="link" id="empty-settings-btn">Settings</button> to get started.</p>
+    </section>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

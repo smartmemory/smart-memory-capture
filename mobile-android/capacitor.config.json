@@ -1,0 +1,11 @@
+{
+  "appId": "ai.smartmemory.capture",
+  "appName": "SmartMemory",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
