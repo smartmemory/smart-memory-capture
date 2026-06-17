@@ -1,4 +1,5 @@
 // Background service worker
+importScripts('lib.js');
 
 // Listen for extension installation
 chrome.runtime.onInstalled.addListener((details) => {
@@ -27,6 +28,15 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Listen for messages from popup or content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
+
+  // Lite-daemon detection — extension pages only (options/popup), carries no clip.
+  // Guard on the sender URL scheme, NOT sender.tab: the options page runs IN a tab
+  // (so sender.tab is set), while content scripts in web tabs have an http(s) url.
+  if (request.action === 'detectLite') {
+    if (!(sender.url || '').startsWith('chrome-extension://')) return false;
+    detectLite(request.port).then(sendResponse);
+    return true; // async response
+  }
 
   // Validate clip shape before any action that uses it
   const clip = request.clip;
@@ -78,6 +88,39 @@ async function handleClipSaved(clip) {
   });
 }
 
+// Probe for a locally-running SmartMemory lite daemon (DIST-DAEMON-1).
+// Mirrors smartmemory_app/daemon.py: GET /health on the loopback port, and the
+// process must self-identify as "smartmemory" — so a random server squatting on
+// the port isn't mistaken for lite. Runs in the worker (not the options page) so
+// the keyless daemon's absent CORS headers don't block the cross-origin read.
+async function detectLite(port) {
+  const p = Number.isInteger(port) && port > 0 ? port : SM_DEFAULT_DAEMON_PORT;
+
+  // Reading a cross-origin loopback response requires host permission for it.
+  try {
+    const granted = await chrome.permissions.contains({ origins: [`http://${SM_DAEMON_HOST}/*`] });
+    if (!granted) return { installed: false, port: p, reason: 'permission' };
+  } catch {
+    return { installed: false, port: p, reason: 'permission' };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1500);
+  try {
+    const res = await fetch(`http://${SM_DAEMON_HOST}:${p}/health`, { method: 'GET', signal: controller.signal });
+    if (!res.ok) return { installed: false, port: p, reason: 'unhealthy' };
+    const data = await res.json().catch(() => null);
+    if (data && data.service === 'smartmemory') {
+      return { installed: true, port: p, version: data.version ?? null, status: data.status ?? null };
+    }
+    return { installed: false, port: p, reason: 'identity' };
+  } catch (e) {
+    return { installed: false, port: p, reason: e.name === 'AbortError' ? 'timeout' : 'unreachable' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Sync clip to SmartMemory API
 async function syncToServer(clip, endpoint) {
   if (!endpoint) {
@@ -103,14 +146,22 @@ async function syncToServer(clip, endpoint) {
   // Token is device-local only — never synced to Google's cloud via storage.sync
   const { syncApiToken } = await chrome.storage.local.get(['syncApiToken']);
 
+  // Auth rule (CAP-CONN-1): a remote (service) target crosses the network and
+  // REQUIRES a token; a loopback (lite daemon) target is OS-authenticated and
+  // ships keyless. Fail fast here rather than firing an unauthenticated request.
+  if (smTokenRequired(endpoint) && !syncApiToken) {
+    return { success: false, error: 'API token required for cloud sync. Add it in Settings, or run SmartMemory locally (lite).' };
+  }
+
   const headers = { 'Content-Type': 'application/json' };
   if (syncApiToken) {
     headers['Authorization'] = `Bearer ${syncApiToken}`;
   }
 
-  // Verify we have host permission for the sync endpoint
+  // Verify we have host permission for the sync endpoint (match patterns can't
+  // include a port, so use protocol+host — http://127.0.0.1/* matches all ports).
   try {
-    const origin = new URL(endpoint).origin + '/*';
+    const origin = smOriginPattern(endpoint);
     const hasPermission = await chrome.permissions.contains({ origins: [origin] });
     if (!hasPermission) {
       return { success: false, error: 'Host permission not granted. Open Settings and test the connection to grant access.' };
@@ -119,34 +170,9 @@ async function syncToServer(clip, endpoint) {
     return { success: false, error: 'Invalid sync endpoint URL' };
   }
 
-  // Map to SmartMemory ingest shape — never send raw HTML to the server
-  const meta = clip.metadata ?? {};
-  const payload = {
-    content: clip.content?.data ?? '',
-    memory_type: 'episodic',
-    metadata: {
-      source_url: clip.url,
-      title: clip.title,
-      tags: clip.tags || [],
-      captured_at: clip.timestamp,
-      capture_mode: clip.mode,
-      // Rich metadata from CAP-ENH-1a
-      ...(meta.author && { author: meta.author }),
-      ...(meta.published_at && { published_at: meta.published_at }),
-      ...(meta.og_site_name && { site_name: meta.og_site_name }),
-      ...(meta.og_type && { content_type: meta.og_type }),
-      ...(meta.og_description && { description: meta.og_description }),
-      ...(meta.word_count && { word_count: meta.word_count }),
-      ...(meta.reading_time_minutes && { reading_time_minutes: meta.reading_time_minutes }),
-      ...(meta.schema_type && { schema_type: meta.schema_type }),
-      readability_extracted: clip.content?.readability ?? false,
-      ...(clip.content?.heroImage && { hero_image: clip.content.heroImage }),
-      ...(meta.video_id && { video_id: meta.video_id }),
-      ...(meta.duration_seconds && { duration_seconds: meta.duration_seconds }),
-      ...(clip.content?.hasTranscript !== undefined && { has_transcript: clip.content.hasTranscript }),
-      ...(clip.notes && { notes: clip.notes })
-    }
-  };
+  // Build the cross-compatible ingest body (service reads metadata from `context`,
+  // the lite daemon from `properties`; both read `context.origin`). See lib.js.
+  const payload = smBuildIngestPayload(clip);
 
   try {
     const response = await fetch(`${endpoint}/memory/ingest`, {

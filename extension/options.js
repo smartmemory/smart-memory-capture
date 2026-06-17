@@ -26,6 +26,84 @@ async function loadSettings() {
   document.getElementById('duplicatePolicy').value = duplicatePolicy;
 
   updateStats();
+  // Silently reflect lite status if we already hold localhost permission (no
+  // gesture is available on load, so we can't request it here).
+  refreshLiteStatus(true);
+}
+
+// Resolve the daemon port to probe: a configured loopback endpoint's explicit
+// port wins, else the lite daemon default (9014).
+function configuredDaemonPort() {
+  try {
+    const ep = document.getElementById('syncEndpoint').value.trim();
+    if (ep) {
+      const u = new URL(ep);
+      if (smIsLoopbackHost(u.hostname) && u.port) return Number(u.port);
+    }
+  } catch { /* fall through to default */ }
+  return SM_DEFAULT_DAEMON_PORT;
+}
+
+// Render a detectLite result into the lite status line. When lite is up and no
+// endpoint is configured yet, auto-target it (an explicit user endpoint always wins).
+async function renderLiteStatus(res, fromButton) {
+  const statusEl = document.getElementById('liteStatus');
+  if (res && res.installed) {
+    const verStr = res.version ? ` v${res.version}` : '';
+    let msg = `✓ Local SmartMemory running on port ${res.port}${verStr}`;
+    const current = document.getElementById('syncEndpoint').value.trim();
+    if (!current) {
+      const url = `http://${SM_DAEMON_HOST}:${res.port}`;
+      document.getElementById('syncEndpoint').value = url;
+      document.getElementById('autoSync').checked = true;
+      await chrome.storage.sync.set({ syncEndpoint: url, autoSync: true });
+      msg += ' — set as your capture target.';
+    }
+    statusEl.textContent = msg;
+    statusEl.className = 'status-message success show';
+  } else if (res) {
+    const hint = res.reason === 'permission'
+      ? 'click "Detect local SmartMemory" to grant localhost access'
+      : `start it with \`smartmemory server\` (port ${res.port}), or configure a Cloud URL + API token below`;
+    statusEl.textContent = `✗ Local SmartMemory not detected — ${hint}`;
+    statusEl.className = `status-message ${fromButton ? 'error ' : ''}show`;
+  }
+}
+
+// Ask the worker to probe the lite daemon. `silent` skips the probe (and stays
+// quiet) when localhost permission hasn't been granted yet.
+async function refreshLiteStatus(silent) {
+  let granted = false;
+  try {
+    granted = await chrome.permissions.contains({ origins: [`http://${SM_DAEMON_HOST}/*`] });
+  } catch { /* treat as not granted */ }
+  if (!granted) {
+    if (!silent) renderLiteStatus({ installed: false, port: configuredDaemonPort(), reason: 'permission' }, true);
+    return;
+  }
+  const res = await chrome.runtime.sendMessage({ action: 'detectLite', port: configuredDaemonPort() });
+  renderLiteStatus(res, !silent);
+}
+
+// "Detect local SmartMemory" button: request localhost permission (user gesture),
+// then probe via the worker.
+async function detectLiteFlow() {
+  const statusEl = document.getElementById('liteStatus');
+  statusEl.textContent = 'Requesting localhost access…';
+  statusEl.className = 'status-message show';
+  let granted = false;
+  try {
+    granted = await chrome.permissions.request({ origins: [`http://${SM_DAEMON_HOST}/*`] });
+  } catch { /* granted stays false */ }
+  if (!granted) {
+    statusEl.textContent = '✗ Permission denied — cannot probe localhost';
+    statusEl.className = 'status-message error show';
+    return;
+  }
+  const port = configuredDaemonPort();
+  statusEl.textContent = `Probing 127.0.0.1:${port}…`;
+  const res = await chrome.runtime.sendMessage({ action: 'detectLite', port });
+  renderLiteStatus(res, true);
 }
 
 // Update statistics
@@ -125,10 +203,17 @@ async function testSync() {
     return;
   }
 
-  // Request host permission for the sync endpoint origin (user gesture context)
+  // Auth rule (CAP-CONN-1): cloud (service) endpoints require a token.
+  if (smTokenRequired(endpoint) && !token) {
+    statusEl.textContent = '✗ API token required for cloud sync';
+    statusEl.className = 'status-message error show';
+    return;
+  }
+
+  // Request host permission for the sync endpoint origin (user gesture context).
+  // Match patterns can't carry a port — protocol+host matches all ports.
   try {
-    const origin = new URL(endpoint).origin + '/*';
-    const granted = await chrome.permissions.request({ origins: [origin] });
+    const granted = await chrome.permissions.request({ origins: [smOriginPattern(endpoint)] });
     if (!granted) {
       statusEl.textContent = '✗ Permission denied — cannot connect to this endpoint';
       statusEl.className = 'status-message error show';
@@ -142,6 +227,22 @@ async function testSync() {
 
   statusEl.textContent = 'Testing connection...';
   statusEl.className = 'status-message show';
+
+  // Loopback (lite) endpoint: probe via the worker — the keyless daemon sends no
+  // CORS headers, so a page-context fetch would be blocked. Also verifies identity.
+  if (smClassifyTarget(endpoint) === 'lite') {
+    let port = SM_DEFAULT_DAEMON_PORT;
+    try { port = Number(new URL(endpoint).port) || SM_DEFAULT_DAEMON_PORT; } catch { /* default */ }
+    const res = await chrome.runtime.sendMessage({ action: 'detectLite', port });
+    if (res && res.installed) {
+      statusEl.textContent = `✓ Local SmartMemory running (port ${res.port})`;
+      statusEl.className = 'status-message success show';
+    } else {
+      statusEl.textContent = `✗ Local SmartMemory not detected (${res?.reason || 'unreachable'})`;
+      statusEl.className = 'status-message error show';
+    }
+    return;
+  }
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -267,7 +368,13 @@ document.getElementById('syncEndpoint').addEventListener('blur', async () => {
     }
   }
   await chrome.storage.sync.set({ syncEndpoint: rawEndpoint });
-  showSaveStatus('Settings saved successfully!', 'success');
+  // Auth rule (CAP-CONN-1): warn (don't block entry) when a cloud endpoint has no
+  // token yet — the actual sync is hard-blocked in background.js until one is set.
+  if (rawEndpoint && smTokenRequired(rawEndpoint) && !document.getElementById('syncApiToken').value.trim()) {
+    showSaveStatus('Saved. API token is required for cloud sync — add it below.', 'error');
+  } else {
+    showSaveStatus('Settings saved successfully!', 'success');
+  }
 });
 document.getElementById('syncApiToken').addEventListener('blur', async () => {
   // Token stored locally only — not synced to Google's cloud
@@ -285,6 +392,7 @@ document.getElementById('duplicatePolicy').addEventListener('change', async () =
   await chrome.storage.sync.set({ duplicatePolicy: val });
   showSaveStatus('Settings saved successfully!', 'success');
 });
+document.getElementById('detectLiteBtn').addEventListener('click', detectLiteFlow);
 document.getElementById('testSyncBtn').addEventListener('click', testSync);
 document.getElementById('exportAllBtn').addEventListener('click', exportAll);
 document.getElementById('importBtn').addEventListener('click', importClips);

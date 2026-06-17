@@ -35,7 +35,7 @@
 
       <section class="settings-section">
         <h2>SmartMemory Sync</h2>
-        <p class="section-desc">Sync clips to your SmartMemory account. HTTPS required (localhost allowed for development).</p>
+        <p class="section-desc">Send captures into SmartMemory. Use a local SmartMemory running on this machine, or your cloud account.</p>
 
         <div class="form-group">
           <label>
@@ -45,15 +45,24 @@
         </div>
 
         <div class="form-group">
+          <label>Local SmartMemory (lite)</label>
+          <small>Capture to a SmartMemory daemon running on this machine — no API token needed.</small>
+          <div>
+            <button id="detectLiteBtn" class="btn-secondary" type="button">Detect local SmartMemory</button>
+          </div>
+          <div id="liteStatus" class="status-message"></div>
+        </div>
+
+        <div class="form-group">
           <label for="syncEndpoint">SmartMemory API URL</label>
           <input type="url" id="syncEndpoint" placeholder="https://api.smartmemory.ai">
-          <small>Must use HTTPS (e.g. https://api.smartmemory.ai). HTTP localhost is allowed for development.</small>
+          <small>Cloud: must use HTTPS (e.g. https://api.smartmemory.ai). Local: http://127.0.0.1:9014.</small>
         </div>
 
         <div class="form-group">
           <label for="syncApiToken">API Token</label>
           <input type="password" id="syncApiToken" placeholder="Paste your SmartMemory API token">
-          <small>Found in your SmartMemory dashboard under Settings → API Keys</small>
+          <small><strong>Required for cloud (HTTPS) sync.</strong> Not needed for a local SmartMemory endpoint. Found in your dashboard under Settings → API Keys.</small>
         </div>
 
         <button id="testSyncBtn" class="btn-secondary">Test Connection</button>
@@ -106,11 +115,12 @@
     </main>
 
     <footer>
-      <p>Smart Memory Capture v1.2.0</p>
+      <p>Smart Memory Capture v1.2.1</p>
       <a href="library.html" target="_blank">View Library</a>
     </footer>
   </div>
 
+  <script src="lib.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Smart Memory Capture",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Capture web content and save it to your own storage - like OneNote Web Clipper but for your personal collection",
   "permissions": [
     "activeTab",
@@ -33,6 +33,6 @@
     "128": "icons/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' data: blob: https: http:; connect-src 'self' https: http://localhost:*; frame-src 'none';"
+    "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' data: blob: https: http:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; frame-src 'none';"
   }
 }

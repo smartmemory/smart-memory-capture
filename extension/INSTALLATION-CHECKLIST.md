@@ -65,27 +65,19 @@ ls -la manifest.json popup.* library.* options.* content.js background.js icons/
 - Settings page should open
 - ✓ Pass if settings page displays
 
-### 4. Optional: Set Up Backend (5 minutes)
+### 4. Connect to SmartMemory (2 minutes)
 
-If you want to sync to your own server:
+Captures land in SmartMemory once you point the extension at an endpoint (Settings ⚙️):
 
-**Option A: Use Example Server**
-```bash
-cd /Users/ruze/reg/my/smart-memory-capture
-npm install express cors
-node example-server.js
-```
+**Option A: Local SmartMemory (no token)**
+- Click "Detect local SmartMemory" — if a daemon is running on this machine
+  (`http://127.0.0.1:9014`) it's auto-set as your capture target
+- ✓ Pass if the status shows "Local SmartMemory running"
 
-Then in extension settings:
-- Enable "Enable automatic sync"
-- Set endpoint: `http://localhost:3000/api/clips`
+**Option B: Cloud (API token required)**
+- Enter your API URL (e.g. `https://api.smartmemory.ai`) and paste your API token
 - Click "Test Connection"
 - ✓ Pass if connection successful
-
-**Option B: Use Your Own Server**
-- See README.md for backend examples
-- Configure endpoint in settings
-- Test connection
 
 ## Troubleshooting
 
@@ -157,9 +149,6 @@ ls -la
 # Regenerate icons
 python3 generate_icons.py
 
-# Start example server
-node example-server.js
-
 # Check manifest syntax
 cat manifest.json | python3 -m json.tool
 ```
@@ -176,9 +165,8 @@ You're successfully installed when:
 ## Getting Help
 
 1. Check `QUICKSTART.md` for fast setup
-2. Check `README.md` for detailed docs
-3. Check `SETUP.md` for backend setup
-4. Check browser console for errors (F12)
+2. Check `README.md` for detailed docs and the SmartMemory connection model
+3. Check browser console for errors (F12)
 
 ---
 

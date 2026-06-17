@@ -10,7 +10,14 @@
 
 ---
 
-Capacitor wrapper that registers SmartMemory as a system share target on Android. Tap **Share** in any app, pick **SmartMemory**, payload is POSTed to the existing `smart-memory-capture` service `/api/clips` endpoint.
+Capacitor wrapper that registers SmartMemory as a system share target on Android. Tap **Share** in any app, pick **SmartMemory**, and the payload is POSTed to SmartMemory.
+
+> **⚠️ Backend changed (2026-06-17):** this scaffold's code still posts to the old
+> standalone `/api/clips` clip service, which has been **removed** (capture is now a thin
+> ingestion surface — see the repo README). When un-parked, port the POST to SmartMemory's
+> `/memory/ingest` using the same connection model as the browser extension (CAP-CONN-1:
+> local lite daemon `http://127.0.0.1:9014` no-token, or cloud HTTPS + API token). The
+> `main.js` retry queue and config UI carry over; only the request shape + endpoint change.
 
 Feature: [DIST-SHARE-ANDROID-NATIVE-1](../../smart-memory-docs/docs/features/DIST-SHARE-ANDROID-NATIVE-1/design.md) (parked)
 

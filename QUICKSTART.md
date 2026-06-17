@@ -11,7 +11,7 @@
 
 3. **Load the Extension**
    - Click "Load unpacked"
-   - Navigate to and select the `smart-memory-capture` folder
+   - Navigate to and select the `extension` folder
    - Click "Select"
 
 4. **Done!** 
@@ -50,15 +50,19 @@
 - Settings → Export All Clips
 - Saves as JSON file you can backup
 
-## What's Next?
+## Connect to SmartMemory
 
-### Set Up Sync (Optional)
-To sync clips to your SmartMemory account:
-1. Go to Settings (⚙️)
-2. Enter your SmartMemory API URL (e.g. `https://api.smartmemory.ai`)
-3. Paste your API token from the SmartMemory dashboard (Settings → API Keys)
-4. Enable auto-sync if desired
-5. Click **Test Connection** to verify
+Captures land in SmartMemory once you point the extension at an endpoint. Go to Settings (⚙️):
+
+**Option A — Local SmartMemory (no token):**
+1. Click **Detect local SmartMemory** — if a daemon is running on this machine
+   (`http://127.0.0.1:9014`), it's auto-set as your capture target.
+2. If it's not detected, start it (`smartmemory server`) and detect again.
+
+**Option B — Cloud (API token required):**
+1. Enter your SmartMemory API URL (e.g. `https://api.smartmemory.ai`)
+2. Paste your API token from the dashboard (Settings → API Keys) — **required for cloud sync**
+3. Enable auto-sync if desired, then click **Test Connection** to verify
 
 ### Customize
 - Edit CSS files to change colors
@@ -89,8 +93,7 @@ To sync clips to your SmartMemory account:
 
 ## Need Help?
 
-- Check `README.md` for detailed documentation
-- Check `SETUP.md` for backend setup
+- Check `README.md` for detailed documentation and the SmartMemory connection model
 - Open browser console (F12) to see errors
 
 ---
