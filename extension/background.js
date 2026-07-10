@@ -145,6 +145,7 @@ async function syncToServer(clip, endpoint) {
 
   // Token is device-local only — never synced to Google's cloud via storage.sync
   const { syncApiToken } = await chrome.storage.local.get(['syncApiToken']);
+  const { syncWorkspaceId } = await chrome.storage.sync.get(['syncWorkspaceId']);
 
   // Auth rule (CAP-CONN-1): a remote (service) target crosses the network and
   // REQUIRES a token; a loopback (lite daemon) target is OS-authenticated and
@@ -153,9 +154,21 @@ async function syncToServer(clip, endpoint) {
     return { success: false, error: 'API token required for cloud sync. Add it in Settings, or run SmartMemory locally (lite).' };
   }
 
+  // Workspace rule (CAP-WORKSPACE-1): the SmartMemory service scopes every write
+  // to a workspace and rejects ingest without X-Workspace-Id (the API key alone
+  // carries no team context). The lite daemon needs none. A loopback endpoint may
+  // be either one, so the header is sent whenever configured and only REQUIRED
+  // where the target is unambiguously the service (non-loopback).
+  if (smTokenRequired(endpoint) && !syncWorkspaceId) {
+    return { success: false, error: 'Workspace ID required for cloud sync. Add it in Settings (dashboard → Settings → Workspace).' };
+  }
+
   const headers = { 'Content-Type': 'application/json' };
   if (syncApiToken) {
     headers['Authorization'] = `Bearer ${syncApiToken}`;
+  }
+  if (syncWorkspaceId) {
+    headers['X-Workspace-Id'] = syncWorkspaceId;
   }
 
   // Verify we have host permission for the sync endpoint (match patterns can't

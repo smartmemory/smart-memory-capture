@@ -59,10 +59,12 @@ Captures land in SmartMemory once you point the extension at an endpoint. Go to 
    (`http://127.0.0.1:9014`), it's auto-set as your capture target.
 2. If it's not detected, start it (`smartmemory server`) and detect again.
 
-**Option B — Cloud (API token required):**
+**Option B — Cloud (API token + workspace required):**
 1. Enter your SmartMemory API URL (e.g. `https://api.smartmemory.ai`)
 2. Paste your API token from the dashboard (Settings → API Keys) — **required for cloud sync**
-3. Enable auto-sync if desired, then click **Test Connection** to verify
+3. Enter your Workspace ID from the dashboard (Settings → Workspace) — **required for cloud sync**
+   (every capture is scoped to a workspace; without it the service rejects the sync)
+4. Enable auto-sync if desired, then click **Test Connection** to verify
 
 ### Customize
 - Edit CSS files to change colors

@@ -65,6 +65,12 @@
           <small><strong>Required for cloud (HTTPS) sync.</strong> Not needed for a local SmartMemory endpoint. Found in your dashboard under Settings → API Keys.</small>
         </div>
 
+        <div class="form-group">
+          <label for="syncWorkspaceId">Workspace ID</label>
+          <input type="text" id="syncWorkspaceId" placeholder="e.g. team_a1b2c3d4e5f6">
+          <small><strong>Required for cloud sync.</strong> The SmartMemory service scopes every capture to a workspace (sent as <code>X-Workspace-Id</code>). Found in your dashboard under Settings → Workspace. Not needed for a local lite daemon.</small>
+        </div>
+
         <button id="testSyncBtn" class="btn-secondary">Test Connection</button>
         <div id="syncStatus" class="status-message"></div>
       </section>

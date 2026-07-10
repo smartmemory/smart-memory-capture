@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- CAP-WORKSPACE-1 — cloud sync actually reaches the service (v1.2.2, found live 2026-07-10
+  by DEMO-WALKTHROUGH-4 spike 0.6):
+  - **`X-Workspace-Id` header.** The service scopes every write to a workspace and rejects
+    `POST /memory/ingest` without `X-Workspace-Id` (the API key alone carries no team
+    context — `service_common/auth/scope.py` `team_required` policy). The extension never
+    sent it, so every cloud sync failed with HTTP 400. New **Workspace ID** setting
+    (options page, `chrome.storage.sync` — it is an identifier, not a secret); sent whenever
+    configured; required (fail-fast, mirroring the token rule) for non-loopback targets.
+  - **Origin tier.** Captures were stamped `origin: "browser:save"`, which is not a
+    registered prefix in core's `origin_policy._TIER_PREFIXES` — clips that DID land fell
+    through to tier 4 and were invisible to BOTH search and recall. Now stamped
+    `capture:extension`, the registered tier-1 namespace (sibling of `capture:android`).
+  - README/QUICKSTART cloud-sync docs now list the Workspace ID requirement.
+
 ### Added
 - CAP-CONN-1 — lite/service connection model (v1.2.1):
   - **Local SmartMemory detection.** "Detect local SmartMemory" probes the lite daemon

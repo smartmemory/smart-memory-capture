@@ -23,7 +23,7 @@ target. The extension classifies the target by endpoint host and applies the mat
 | Target | Endpoint | Auth |
 |--------|----------|------|
 | **Local (lite)** | `http://127.0.0.1:9014` — a SmartMemory daemon on this machine | No token (loopback is OS-authenticated) |
-| **Cloud (service)** | `https://api.smartmemory.ai` (or self-hosted, HTTPS) | **API token required** |
+| **Cloud (service)** | `https://api.smartmemory.ai` (or self-hosted, HTTPS) | **API token + Workspace ID required** (sent as `X-Workspace-Id` — the service scopes every capture to a workspace) |
 
 - **Detect local SmartMemory** probes `GET /health` on the lite daemon and verifies it
   identifies as SmartMemory. If found and no endpoint is configured, it auto-targets the

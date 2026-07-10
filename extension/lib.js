@@ -16,7 +16,11 @@ const SM_DEFAULT_DAEMON_PORT = 9014;
 const SM_DAEMON_HOST = '127.0.0.1';
 
 // Origin tag for browser captures — origin_policy tier-1 (user content, search-visible).
-const SM_CAPTURE_ORIGIN = 'browser:save';
+// MUST stay under the `capture:` prefix: that is the namespace registered in core's
+// origin_policy._TIER_PREFIXES (sibling: mobile's `capture:android`). The previous value
+// `browser:save` was unregistered and fell through to tier 4 — every clip synced to the
+// service was silently hidden from BOTH search and recall (found live 2026-07-10, spike 0.6).
+const SM_CAPTURE_ORIGIN = 'capture:extension';
 
 function smIsLoopbackHost(host) {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1';

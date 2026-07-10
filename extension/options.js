@@ -4,6 +4,7 @@ async function loadSettings() {
     'syncMode',
     'autoSync',
     'syncEndpoint',
+    'syncWorkspaceId',
     'defaultTags',
     'duplicatePolicy'
   ]);
@@ -19,6 +20,7 @@ async function loadSettings() {
   document.getElementById('autoSync').checked = settings.autoSync || false;
   document.getElementById('syncEndpoint').value = settings.syncEndpoint || '';
   document.getElementById('syncApiToken').value = settings.syncApiToken || '';
+  document.getElementById('syncWorkspaceId').value = settings.syncWorkspaceId || '';
   document.getElementById('defaultTags').value = settings.defaultTags || '';
 
   const allowedPolicies = ['prompt', 'always', 'never'];
@@ -143,6 +145,7 @@ async function saveSettings() {
     syncMode: syncMode,
     autoSync: document.getElementById('autoSync').checked,
     syncEndpoint: endpointRaw,
+    syncWorkspaceId: document.getElementById('syncWorkspaceId').value.trim(),
     defaultTags: document.getElementById('defaultTags').value
   };
 
@@ -379,6 +382,11 @@ document.getElementById('syncEndpoint').addEventListener('blur', async () => {
 document.getElementById('syncApiToken').addEventListener('blur', async () => {
   // Token stored locally only — not synced to Google's cloud
   await chrome.storage.local.set({ syncApiToken: document.getElementById('syncApiToken').value.trim() });
+  showSaveStatus('Settings saved successfully!', 'success');
+});
+document.getElementById('syncWorkspaceId').addEventListener('blur', async () => {
+  // Workspace id is an identifier, not a secret — synced like the endpoint
+  await chrome.storage.sync.set({ syncWorkspaceId: document.getElementById('syncWorkspaceId').value.trim() });
   showSaveStatus('Settings saved successfully!', 'success');
 });
 document.getElementById('defaultTags').addEventListener('blur', async () => {
