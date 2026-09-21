@@ -55,3 +55,6 @@ package-lock.json
 # Local secrets
 .secrets
 .act.secrets
+
+# session flush scratch (per-session, not shared state)
+session-context*
