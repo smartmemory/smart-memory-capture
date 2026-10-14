@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Repo references renamed `smartmemory-*` -> `smart-memory-*` in docs, scripts and config (INFRA-REPO-RENAME-1).
+
 ### Fixed
 - CAP-WORKSPACE-1 — cloud sync actually reaches the service (v1.2.2, found live 2026-07-10
   by DEMO-WALKTHROUGH-4 spike 0.6):
