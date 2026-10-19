@@ -120,7 +120,7 @@ python3 generate_icons.py
 4. **Test right-click menu**
    - Select text on any page
    - Right-click
-   - Choose "Capture selection to Smart Memory"
+   - Choose "Capture selection to SmartMemory"
 
 5. **Explore the library**
    - Search functionality

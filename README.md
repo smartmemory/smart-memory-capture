@@ -1,4 +1,4 @@
-# Smart Memory Capture
+# SmartMemory Capture
 
 **Version:** 1.3.0
 

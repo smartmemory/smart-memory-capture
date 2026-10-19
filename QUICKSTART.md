@@ -35,7 +35,7 @@
 
 ### Quick Capture
 - Select any text on a page
-- Right-click → "Capture selection to Smart Memory"
+- Right-click → "Capture selection to SmartMemory"
 
 ### Organize with Tags
 - Use consistent tags: `work`, `personal`, `research`
