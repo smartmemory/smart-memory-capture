@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Memory Capture</title>
+  <title>SmartMemory Capture</title>
+  <link rel="stylesheet" href="brand.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>📋 Smart Memory Capture</h1>
+      <h1 class="brand"><img class="brand-logo" src="icons/logo.svg" alt="" width="28" height="28"><span class="brand-name">SmartMemory <span>Capture</span></span></h1>
       <p class="subtitle">Save this page to your collection</p>
     </header>
 
@@ -24,7 +25,7 @@
         <label class="option-card">
           <input type="radio" name="captureMode" value="full" checked>
           <div class="option-content">
-            <span class="option-icon">📄</span>
+            <span class="option-icon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
             <div>
               <div class="option-title">Full Page</div>
               <div class="option-desc">Capture entire page content</div>
@@ -35,7 +36,7 @@
         <label class="option-card">
           <input type="radio" name="captureMode" value="article">
           <div class="option-content">
-            <span class="option-icon">📰</span>
+            <span class="option-icon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg></span>
             <div>
               <div class="option-title">Article</div>
               <div class="option-desc">Extract main article content</div>
@@ -46,7 +47,7 @@
         <label class="option-card">
           <input type="radio" name="captureMode" value="selection">
           <div class="option-content">
-            <span class="option-icon">✂️</span>
+            <span class="option-icon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg></span>
             <div>
               <div class="option-title">Selection</div>
               <div class="option-desc">Capture selected text only</div>
@@ -57,7 +58,7 @@
         <label class="option-card">
           <input type="radio" name="captureMode" value="screenshot">
           <div class="option-content">
-            <span class="option-icon">📸</span>
+            <span class="option-icon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
             <div>
               <div class="option-title">Screenshot</div>
               <div class="option-desc">Capture visual screenshot</div>
@@ -81,7 +82,7 @@
 
     <div class="actions">
       <button id="captureBtn" class="btn-primary">
-        <span class="btn-icon">💾</span>
+        <span class="btn-icon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></span>
         Capture & Save
       </button>
       <button id="viewLibraryBtn" class="btn-secondary">
@@ -92,7 +93,7 @@
     <div class="status" id="status"></div>
 
     <footer>
-      <a href="#" id="settingsLink">⚙️ Settings</a>
+      <a href="#" id="settingsLink"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg> Settings</a>
     </footer>
   </div>
 

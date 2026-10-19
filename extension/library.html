@@ -3,20 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Memory Library</title>
+  <title>SmartMemory Capture Library</title>
+  <link rel="stylesheet" href="brand.css">
   <link rel="stylesheet" href="library.css">
 </head>
 <body>
   <div class="container">
     <header>
       <div class="header-content">
-        <h1>📚 Smart Memory Library</h1>
+        <h1 class="brand"><img class="brand-logo" src="icons/logo.svg" alt="" width="32" height="32"><span class="brand-name">SmartMemory <span>Capture Library</span></span></h1>
         <div class="header-actions">
           <button id="exportBtn" class="btn-secondary">
-            <span>📥</span> Export All
+            <span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></span> Export All
           </button>
           <button id="settingsBtn" class="btn-secondary">
-            <span>⚙️</span> Settings
+            <span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg></span> Settings
           </button>
         </div>
       </div>
@@ -62,7 +63,7 @@
     </main>
 
     <div class="empty-state" id="emptyState" style="display: none;">
-      <div class="empty-icon">📋</div>
+      <div class="empty-icon"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></div>
       <h2>No clips yet</h2>
       <p>Start capturing web content by clicking the extension icon on any page</p>
     </div>

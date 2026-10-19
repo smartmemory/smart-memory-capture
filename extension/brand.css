@@ -1,0 +1,155 @@
+/*
+ * SmartMemory brand tokens for the Capture extension.
+ * Source: smart-memory-design-system/colors_and_type.css (primitives, radii, type scale,
+ * motion) and smart-memory-design-system/README.md (dark-first, blue primary, emerald
+ * accent, Lucide-style stroke icons, no emoji in product UI).
+ * Only the tokens the extension uses are copied. System fonts only (MV3: no remote fonts).
+ * Dark is the default theme, as in the product. Light follows prefers-color-scheme.
+ */
+:root {
+  /* design-system primitives */
+  --brand-bg:          #02040a;
+  --brand-blue:        #3b82f6;
+  --brand-blue-hover:  #2563eb;
+  --brand-blue-400:    #60a5fa;
+  --brand-emerald:     #10b981;
+  --brand-gradient:    linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  --gray-50:  #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --gray-950: #030712;
+  --accent-green-400: #4ade80;
+  --accent-yellow-400: #facc15;
+  --accent-red-400: #f87171;
+  --destructive: #ef4444;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-tight: -0.025em;
+
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.25);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+  --shadow-glow-blue-sm: 0 4px 14px 0 rgba(59,130,246,0.2);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+
+  /* themed roles (dark default), mapped from the design system's fg/bg/border roles */
+  --bg:          var(--gray-950);
+  --surface:     var(--gray-900);
+  --surface-2:   var(--gray-800);
+  --fg:          #ffffff;
+  --fg-body:     var(--gray-300);
+  --fg-muted:    var(--gray-400);
+  --border:      var(--gray-800);
+  --border-strong: var(--gray-700);
+  --link:        var(--brand-blue-400);
+  --primary:     var(--brand-blue-hover);
+  --primary-hover: var(--brand-blue);
+  --on-primary:  #ffffff;
+  --ring:        var(--brand-blue-400);
+  --selected-bg: rgba(59,130,246,0.12);
+  --ok-bg:       rgba(74,222,128,0.10);
+  --ok-fg:       var(--accent-green-400);
+  --ok-border:   rgba(74,222,128,0.30);
+  --warn-bg:     rgba(250,204,21,0.10);
+  --warn-fg:     var(--accent-yellow-400);
+  --warn-border: rgba(250,204,21,0.30);
+  --err-bg:      rgba(248,113,113,0.10);
+  --err-fg:      var(--accent-red-400);
+  --err-border:  rgba(248,113,113,0.30);
+  --danger:      #b91c1c;
+  --danger-hover:#dc2626;
+  --code-bg:     #0b1220;
+  --code-fg:     var(--gray-200);
+  --scrim:       rgba(0,0,0,0.6);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg:          var(--gray-50);
+    --surface:     #ffffff;
+    --surface-2:   var(--gray-100);
+    --fg:          var(--gray-900);
+    --fg-body:     var(--gray-700);
+    --fg-muted:    var(--gray-600);
+    --border:      var(--gray-200);
+    --border-strong: var(--gray-300);
+    --link:        var(--brand-blue-hover);
+    --primary:     var(--brand-blue-hover);
+    --primary-hover: #1d4ed8;
+    --ring:        var(--brand-blue-hover);
+    --selected-bg: #eff6ff;
+    --ok-bg:       #f0fdf4;
+    --ok-fg:       #166534;
+    --ok-border:   #bbf7d0;
+    --warn-bg:     #fffbeb;
+    --warn-fg:     #92400e;
+    --warn-border: #fde68a;
+    --err-bg:      #fef2f2;
+    --err-fg:      #991b1b;
+    --err-border:  #fecaca;
+    --danger-hover:#991b1b;
+    --scrim:       rgba(17,24,39,0.5);
+    --shadow-lg:   0 10px 15px -3px rgba(17,24,39,0.15);
+    color-scheme: light;
+  }
+}
+
+/* shared chrome */
+*, *::before, *::after { box-sizing: border-box; }
+body { font-family: var(--font-sans); background: var(--bg); color: var(--fg-body); }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+::placeholder { color: var(--fg-muted); opacity: 1; }
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.brand-logo { width: 28px; height: 28px; flex: none; display: block; }
+.brand-name {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+  line-height: 1.2;
+}
+.brand-name span { color: var(--fg-muted); font-weight: var(--weight-medium); }
+
+/* Lucide-style stroke icons (inline SVG, currentColor) */
+.ico {
+  width: 16px; height: 16px; flex: none;
+  stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

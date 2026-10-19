@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- CAPTURE-EXT-BRAND-1 — extension v1.3.0, SmartMemory branding and design. Renamed "Smart Memory Capture" to
+  **SmartMemory Capture** (manifest name, toolbar title, popup, settings, library, context menu, notifications).
+  New icons (16/32/48/128) rendered from the shipped logo by `extension/generate_icons.py`; the old emoji
+  generator `create-icons.html` is removed. Popup, settings, library and the in-page capture sheet are restyled with
+  the design system tokens (`extension/brand.css`), dark by default with a light theme, the logo and wordmark in each
+  header, and stroke icons instead of emoji. New manifest description. No change to capture logic, message passing,
+  storage keys or defaults, permissions or host permissions.
+
 - DEPS-SEC-CAPTURE-1 — `mobile-android`: `@capacitor/android` floor `^6.1.0` -> `^6.2.2` (clears GHSA-rvm3-566m-v7fv, internal HTTP proxy could load remote content at the app origin) and `@capacitor/core` floor -> `^6.2.0` (peer minimum of android 6.2.2). New `npm test` (`mobile-android/test/capacitor-floors.test.mjs`) pins every `@capacitor/*` floor. The lockfile is untracked: run `npm install` in `mobile-android/` to refresh it.
 - Repo references renamed `smartmemory-*` -> `smart-memory-*` in docs, scripts and config (INFRA-REPO-RENAME-1).
 

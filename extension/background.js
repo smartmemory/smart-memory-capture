@@ -19,7 +19,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'captureSelection',
-      title: 'Capture selection to Smart Memory',
+      title: 'Capture selection to SmartMemory',
       contexts: ['selection']
     });
   });
@@ -82,7 +82,7 @@ async function handleClipSaved(clip) {
   chrome.notifications.create({
     type: 'basic',
     iconUrl: 'icons/icon48.png',
-    title: 'Clip Saved',
+    title: 'SmartMemory Capture: Clip Saved',
     message: `"${clip.title}" has been saved to your library`,
     priority: 1
   });
@@ -259,7 +259,7 @@ async function saveSelectionClip(request, tab) {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
-      title: 'Clip Saved',
+      title: 'SmartMemory Capture: Clip Saved',
       message: `"${clip.title}" has been saved to your library`,
       priority: 1
     });

@@ -60,40 +60,48 @@ function showCaptureSheet(selectionText, defaultTags) {
 
   shadow.innerHTML = `
     <style>
+      /* Tokens from smart-memory-design-system/colors_and_type.css (dark surface, blue primary) */
       :host { all: initial; }
       .sheet {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #fff;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: #111827;
+        color: #d1d5db;
         border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4), 0 25px 50px -12px rgba(0,0,0,0.6);
         padding: 16px;
         width: 320px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #374151;
       }
       .sheet-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
       }
+      .sheet-brand { display: flex; align-items: center; gap: 8px; }
+      .sheet-logo { display: block; flex: none; }
       .sheet-title {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
-        color: #2c3e50;
+        letter-spacing: -0.025em;
+        color: #ffffff;
       }
       .sheet-close {
         background: none;
         border: none;
         cursor: pointer;
         font-size: 18px;
-        color: #6c757d;
-        padding: 0;
+        color: #9ca3af;
+        padding: 2px 6px;
+        border-radius: 6px;
         line-height: 1;
       }
+      .sheet-close:hover { color: #ffffff; background: #1f2937; }
       .sheet-preview {
         font-size: 12px;
-        color: #495057;
-        background: #f8f9fa;
+        color: #d1d5db;
+        background: #030712;
+        border: 1px solid #1f2937;
         border-radius: 6px;
         padding: 8px;
         max-height: 64px;
@@ -104,41 +112,51 @@ function showCaptureSheet(selectionText, defaultTags) {
       input {
         width: 100%;
         padding: 7px 10px;
-        border: 1.5px solid #e2e8f0;
+        border: 1px solid #374151;
         border-radius: 6px;
         font-size: 12px;
         font-family: inherit;
+        background: #030712;
+        color: #ffffff;
         box-sizing: border-box;
         margin-bottom: 10px;
         outline: none;
         transition: border-color 0.15s;
       }
-      input:focus { border-color: #667eea; }
+      input::placeholder { color: #9ca3af; opacity: 1; }
+      input:focus { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa; }
       .sheet-actions { display: flex; gap: 8px; }
       .btn-save {
         flex: 1;
         padding: 8px;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: #fff;
+        background: #2563eb;
+        color: #ffffff;
         border: none;
-        border-radius: 7px;
+        border-radius: 6px;
         font-size: 13px;
         font-weight: 600;
+        font-family: inherit;
         cursor: pointer;
+        transition: background 0.15s;
       }
+      .btn-save:hover { background: #3b82f6; }
+      .btn-save:focus-visible, .sheet-close:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
       .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
       .sheet-status {
         font-size: 12px;
         text-align: center;
         min-height: 16px;
         margin-top: 8px;
-        color: #28a745;
+        color: #4ade80;
       }
-      .sheet-status.error { color: #dc3545; }
+      .sheet-status.error { color: #f87171; }
     </style>
     <div class="sheet">
       <div class="sheet-header">
-        <span class="sheet-title">Save to Smart Memory</span>
+        <div class="sheet-brand">
+          <svg class="sheet-logo" viewBox="0 0 100 100" width="22" height="22" aria-hidden="true"><defs><mask id="smm" maskUnits="userSpaceOnUse"><rect x="-10" y="-10" width="120" height="120" fill="white"/><circle cx="50" cy="80" r="6.1" fill="black"/></mask><linearGradient id="smg" gradientUnits="userSpaceOnUse" x1="50" y1="0" x2="50" y2="100"><stop offset="0%" stop-color="#3ddcb0"/><stop offset="100%" stop-color="#2bb1ff"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="#02040a"/><g transform="translate(4 4) scale(.92)" fill="none" stroke="url(#smg)" stroke-width="4.348" stroke-linecap="round" stroke-linejoin="round"><g mask="url(#smm)"><path d="M 50 80 C 37.72 64.81, 22.72 60.52, 22.72 41.04"/><path d="M 50 80 C 62.28 64.81, 77.28 60.52, 77.28 41.04"/></g><circle cx="22.72" cy="41.04" r="4.8"/><circle cx="50" cy="22" r="4.8"/><circle cx="77.28" cy="41.04" r="4.8"/><circle cx="50" cy="80" r="8.2"/><circle cx="50" cy="80" r="3.2" fill="url(#smg)" stroke="none"/></g></svg>
+          <span class="sheet-title">Save to SmartMemory</span>
+        </div>
         <button class="sheet-close" id="smClose">✕</button>
       </div>
       <div class="sheet-preview" id="smPreview"></div>

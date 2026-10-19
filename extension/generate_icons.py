@@ -1,116 +1,53 @@
 #!/usr/bin/env python3
+"""Render the extension icons (16/32/48/128) from the shipped SmartMemory logo.
+
+Source: icons/logo.svg, a verbatim copy of smart-memory-web/public/logo.svg
+(canonical; also smart-memory-design-system/assets/logo.svg). Requires rsvg-convert.
+Sizes 48 and up use the logo as shipped. Sizes under 48 use the same mark with a
+heavier stroke and larger nodes so it stays legible (the design system's
+smartmemory-filament-color-bold.svg uses the same idea, stroke 4 vs 2.2).
+
+Run from this folder:  python3 generate_icons.py
 """
-Simple icon generator for the Chrome extension.
-Creates three PNG files with gradient backgrounds.
-"""
+import re
+import subprocess
+import sys
+from pathlib import Path
 
-try:
-    from PIL import Image, ImageDraw, ImageFont
-    PIL_AVAILABLE = True
-except ImportError:
-    PIL_AVAILABLE = False
-    print("PIL/Pillow not installed. Install with: pip install Pillow")
+HERE = Path(__file__).resolve().parent
+LOGO = (HERE / "icons" / "logo.svg").read_text()
 
-def create_icon(size, filename):
-    """Create a simple gradient icon with clipboard emoji"""
-    # Create image with gradient
-    img = Image.new('RGB', (size, size))
-    draw = ImageDraw.Draw(img)
-    
-    # Draw gradient background (purple to blue)
-    for y in range(size):
-        # Interpolate between two colors
-        r = int(102 + (118 - 102) * y / size)
-        g = int(126 + (75 - 126) * y / size)
-        b = int(234 + (162 - 234) * y / size)
-        draw.line([(0, y), (size, y)], fill=(r, g, b))
-    
-    # Try to add text
-    try:
-        font_size = int(size * 0.5)
-        # Try to use a system font
-        try:
-            font = ImageFont.truetype("/System/Library/Fonts/Apple Color Emoji.ttc", font_size)
-        except:
-            try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
-            except:
-                font = ImageFont.load_default()
-        
-        # Draw clipboard icon (using text as fallback)
-        text = "📋"
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        position = ((size - text_width) // 2, (size - text_height) // 2 - bbox[1])
-        draw.text(position, text, fill='white', font=font)
-    except Exception as e:
-        # Fallback: draw a simple rectangle
-        margin = size // 4
-        draw.rectangle([margin, margin, size-margin, size-margin], 
-                      outline='white', width=max(2, size//16))
-    
-    # Save
-    img.save(filename, 'PNG')
-    print(f"Created {filename}")
 
-def main():
-    if not PIL_AVAILABLE:
-        print("\nCreating simple colored squares instead...")
-        # Create very simple icons without PIL
-        for size in [16, 48, 128]:
-            img_data = create_simple_png(size)
-            filename = f"icons/icon{size}.png"
-            with open(filename, 'wb') as f:
-                f.write(img_data)
-            print(f"Created {filename}")
-        return
-    
-    import os
-    os.makedirs('icons', exist_ok=True)
-    
-    # Create icons in three sizes
-    create_icon(16, 'icons/icon16.png')
-    create_icon(48, 'icons/icon48.png')
-    create_icon(128, 'icons/icon128.png')
-    
-    print("\n✓ All icons created successfully!")
-    print("You can now load the extension in Chrome.")
+def small_variant(svg: str, stroke: float, node_r: float, hub_r: float) -> str:
+    """Heavier-stroke variant of the logo for small sizes."""
+    svg = svg.replace('stroke-width="4.348"', f'stroke-width="{stroke}"')
+    svg = svg.replace('r="4.8"', f'r="{node_r}"')
+    svg = svg.replace('r="8.2"', f'r="{hub_r}"')
+    svg = svg.replace('r="6.1"', f'r="{hub_r + stroke / 2:.2f}"')
+    return svg
 
-def create_simple_png(size):
-    """Create a minimal PNG without PIL"""
-    # This creates a simple purple square
-    import struct
-    import zlib
-    
-    # PNG header
-    png = b'\x89PNG\r\n\x1a\n'
-    
-    # IHDR chunk
-    ihdr = struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0)
-    png += struct.pack('>I', len(ihdr))
-    png += b'IHDR' + ihdr
-    png += struct.pack('>I', zlib.crc32(b'IHDR' + ihdr) & 0xffffffff)
-    
-    # IDAT chunk (image data)
-    raw_data = b''
-    for y in range(size):
-        raw_data += b'\x00'  # Filter type
-        for x in range(size):
-            # Purple color (102, 126, 234)
-            raw_data += bytes([102, 126, 234])
-    
-    compressed = zlib.compress(raw_data, 9)
-    png += struct.pack('>I', len(compressed))
-    png += b'IDAT' + compressed
-    png += struct.pack('>I', zlib.crc32(b'IDAT' + compressed) & 0xffffffff)
-    
-    # IEND chunk
-    png += struct.pack('>I', 0)
-    png += b'IEND'
-    png += struct.pack('>I', zlib.crc32(b'IEND') & 0xffffffff)
-    
-    return png
 
-if __name__ == '__main__':
-    main()
+VARIANTS = {
+    16: small_variant(LOGO, stroke=7.5, node_r=5.5, hub_r=9.0),
+    32: small_variant(LOGO, stroke=6.0, node_r=5.2, hub_r=8.6),
+    48: LOGO,
+    128: LOGO,
+}
+
+
+def main() -> int:
+    for size, svg in VARIANTS.items():
+        out = HERE / "icons" / f"icon{size}.png"
+        proc = subprocess.run(
+            ["rsvg-convert", "-w", str(size), "-h", str(size), "-o", str(out)],
+            input=svg.encode(), capture_output=True,
+        )
+        if proc.returncode != 0:
+            print(proc.stderr.decode(), file=sys.stderr)
+            return 1
+        print(f"wrote {out.relative_to(HERE)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
