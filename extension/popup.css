@@ -13,7 +13,7 @@ header {
 }
 
 h1 { font-size: var(--text-lg); font-weight: var(--weight-semibold); }
-h1.brand .brand-name { color: #fff; }
+h1.brand .brand-name { color: #ffffff; }
 h1.brand .brand-name span { color: var(--gray-400); }
 
 .subtitle { display: none; }
@@ -159,7 +159,7 @@ textarea { resize: vertical; min-height: 44px; max-height: 90px; }
 }
 
 /* Actions */
-.btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.btn-disabled { pointer-events: none; }
 
 .actions {
   padding: 0 16px 12px;
@@ -184,7 +184,7 @@ button {
 }
 
 .btn-primary { background: var(--primary); color: var(--on-primary); }
-.btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-glow-blue-sm); }
+.btn-primary:hover { background: var(--primary-hover); }
 
 .btn-secondary {
   background: transparent;

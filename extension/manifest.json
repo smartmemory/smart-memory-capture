@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SmartMemory Capture",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Save web pages, articles, selections and screenshots to your own library, and sync them to SmartMemory.",
   "permissions": [
     "activeTab",

@@ -69,7 +69,7 @@
   --border-strong: var(--gray-700);
   --link:        var(--brand-blue-400);
   --primary:     var(--brand-blue-hover);
-  --primary-hover: var(--brand-blue);
+  --primary-hover: var(--brand-blue-hover);
   --on-primary:  #ffffff;
   --ring:        var(--brand-blue-400);
   --selected-bg: rgba(59,130,246,0.12);
@@ -82,9 +82,10 @@
   --err-bg:      rgba(248,113,113,0.10);
   --err-fg:      var(--accent-red-400);
   --err-border:  rgba(248,113,113,0.30);
-  --danger:      #b91c1c;
-  --danger-hover:#dc2626;
-  --code-bg:     #0b1220;
+  --on-danger:   var(--brand-bg);
+  --danger:      var(--destructive);
+  --danger-hover:var(--accent-red-400);
+  --code-bg:     var(--gray-950);
   --code-fg:     var(--gray-200);
   --scrim:       rgba(0,0,0,0.6);
   color-scheme: dark;
@@ -102,24 +103,35 @@
     --border-strong: var(--gray-300);
     --link:        var(--brand-blue-hover);
     --primary:     var(--brand-blue-hover);
-    --primary-hover: #1d4ed8;
-    --ring:        var(--brand-blue-hover);
-    --selected-bg: #eff6ff;
-    --ok-bg:       #f0fdf4;
-    --ok-fg:       #166534;
-    --ok-border:   #bbf7d0;
-    --warn-bg:     #fffbeb;
-    --warn-fg:     #92400e;
-    --warn-border: #fde68a;
-    --err-bg:      #fef2f2;
-    --err-fg:      #991b1b;
-    --err-border:  #fecaca;
-    --danger-hover:#991b1b;
+      --ring:        var(--brand-blue-hover);
+    --selected-bg: rgba(59,130,246,0.08);
+      --ok-bg:       rgba(74,222,128,0.18);
+    --ok-fg:       var(--gray-900);
+    --ok-border:   rgba(74,222,128,0.60);
+    --warn-bg:     rgba(250,204,21,0.18);
+    --warn-fg:     var(--gray-900);
+    --warn-border: rgba(250,204,21,0.60);
+    --err-bg:      rgba(248,113,113,0.18);
+    --err-fg:      var(--gray-900);
+    --err-border:  rgba(248,113,113,0.60);
     --scrim:       rgba(17,24,39,0.5);
     --shadow-lg:   0 10px 15px -3px rgba(17,24,39,0.15);
     color-scheme: light;
   }
 }
+
+/* Palette rule: every color is a colors_and_type.css token (alpha on a token's rgb is allowed).
+ * That file has no darker blue than blue-600 and no red that carries white text, so:
+ * primary hover keeps blue-600 and adds the token glow, danger is destructive with dark text,
+ * and light-mode status text is gray-900 on a tinted token background.
+ * scripts/check_contrast.py enforces both the 4.5:1 ratios and the token mapping. */
+button:disabled, button:disabled:hover, button.btn-disabled, button.btn-disabled:hover {
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.btn-primary:hover, .btn-primary:focus-visible { box-shadow: var(--shadow-glow-blue-sm); }
 
 /* shared chrome */
 *, *::before, *::after { box-sizing: border-box; }

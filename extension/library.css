@@ -210,7 +210,7 @@ button > span { display: inline-flex; }
 .btn-secondary { background: transparent; color: var(--fg); border: 1px solid var(--border-strong); }
 .btn-secondary:hover { background: var(--surface-2); }
 
-.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn-danger:hover { background: var(--danger-hover); }
 
 .loading {

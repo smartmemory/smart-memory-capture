@@ -108,12 +108,12 @@ button {
 }
 
 .btn-primary { background: var(--primary); color: var(--on-primary); }
-.btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-glow-blue-sm); }
+.btn-primary:hover { background: var(--primary-hover); }
 
 .btn-secondary { background: transparent; color: var(--fg); border: 1px solid var(--border-strong); }
 .btn-secondary:hover { background: var(--surface-2); }
 
-.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn-danger:hover { background: var(--danger-hover); }
 
 .status-message {

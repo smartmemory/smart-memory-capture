@@ -8,9 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- CAPTURE-EXT-BRAND-1 — extension v1.3.0, SmartMemory branding and design. Renamed "Smart Memory Capture" to
+- CAPTURE-EXT-BRAND-FU-1 and FU-2: extension v1.3.1, contrast in every button state and a palette taken from the
+  design system token file. Primary hover no longer lightens to blue-500 (3.68:1 with white text) and keeps blue-600
+  with the token glow. Danger buttons use the destructive token with dark text. Disabled buttons use a muted surface
+  instead of 45 to 50 percent opacity. Light-mode status text is gray-900 on a tinted token background. Colors that
+  were not in `colors_and_type.css` are remapped to tokens. New `extension/scripts/check_contrast.py` (stdlib only)
+  computes the WCAG ratio for every text and background state pair in dark and light and checks every color against
+  the token file. No change to capture logic, storage keys, permissions or element ids.
+- CAPTURE-EXT-BRAND-1: extension v1.3.0, SmartMemory branding and design. Renamed "Smart Memory Capture" to
   **SmartMemory Capture** (manifest name, toolbar title, popup, settings, library, context menu, notifications).
-  New icons (16/32/48/128) rendered from the shipped logo by `extension/generate_icons.py`; the old emoji
+  New icons (16/32/48/128) rendered from the shipped logo by `extension/generate_icons.py`, and the old emoji
   generator `create-icons.html` is removed. Popup, settings, library and the in-page capture sheet are restyled with
   the design system tokens (`extension/brand.css`), dark by default with a light theme, the logo and wordmark in each
   header, and stroke icons instead of emoji. New manifest description. No change to capture logic, message passing,

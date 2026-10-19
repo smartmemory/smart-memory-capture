@@ -49,8 +49,13 @@ target. The extension classifies the target by endpoint host and applies the mat
 The extension is named **SmartMemory Capture** everywhere (toolbar title, popup, settings, library, notifications).
 Icons (16/32/48/128) are rendered from the shipped logo (`extension/icons/logo.svg`, a copy of
 `smart-memory-web/public/logo.svg`) by `extension/generate_icons.py` (needs `rsvg-convert`).
-Colors, type, radii and motion come from the design system tokens, copied into `extension/brand.css`
-(source: `smart-memory-design-system/colors_and_type.css`). Dark is the default theme and light follows
+Colors, type, radii and motion are copied from the design system token file into `extension/brand.css`
+(source: `smart-memory-design-system/colors_and_type.css`). Every color in `brand.css`, the page stylesheets and the
+in-page sheet is a token from that file (alpha on a token color is allowed). The token file has no light theme, so
+the light roles reuse its gray scale and blue-600, and where a token cannot carry text at 4.5:1 the control uses a
+different token pairing instead (for example danger buttons use dark text on the destructive token).
+`python3 extension/scripts/check_contrast.py` checks the WCAG ratio of every text and background state pair in dark
+and light and the token mapping. It exits 1 on any failure. Dark is the default theme and light follows
 the system setting. System fonts only, no remote assets. After updating, reload the unpacked extension at `chrome://extensions`.
 
 ### Capture modes

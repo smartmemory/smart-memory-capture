@@ -139,9 +139,9 @@ function showCaptureSheet(selectionText, defaultTags) {
         cursor: pointer;
         transition: background 0.15s;
       }
-      .btn-save:hover { background: #3b82f6; }
+      .btn-save:hover { box-shadow: 0 4px 14px 0 rgba(59,130,246,0.2); }
       .btn-save:focus-visible, .sheet-close:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
-      .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btn-save:disabled, .btn-save:disabled:hover { background: #1f2937; color: #9ca3af; box-shadow: none; cursor: not-allowed; }
       .sheet-status {
         font-size: 12px;
         text-align: center;
