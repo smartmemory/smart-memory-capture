@@ -5,15 +5,16 @@
   "description": "SmartMemory Android share-target app (Capacitor wrapper around the capture API)",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "test": "node --test test/capacitor-floors.test.mjs",
     "sync": "npm run build && cap sync android",
     "android:open": "cap open android",
     "android:run": "cap run android",
     "android:apk": "cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
-    "@capacitor/android": "^6.1.0",
+    "@capacitor/android": "^6.2.2",
     "@capacitor/app": "^6.0.0",
-    "@capacitor/core": "^6.1.0",
+    "@capacitor/core": "^6.2.0",
     "@capacitor/preferences": "^6.0.0"
   },
   "devDependencies": {
