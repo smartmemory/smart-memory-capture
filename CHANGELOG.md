@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Test (security, DEPS-SEC-FLOOR-GUARD-CLASS-1): `mobile-android/test/capacitor-floors.test.mjs` judges a declared range by the lowest version it admits, ordered by full semver precedence (a prerelease sorts below its release), instead of the first numeric triple after stripping the operator. `<6.4.3`, `<=6.4.3`, `^4.1.11-rc.0` and `^4.1.12 || 4.0.18` now fail a stable floor, range syntax the check cannot model fails closed, and installed versions use the same ordering. One row table covers the repros and each grammar form.
 - CAPTURE-EXT-BRAND-FU-1 and FU-2: extension v1.3.1, contrast in every button state and a palette taken from the
   design system token file. Primary hover no longer lightens to blue-500 (3.68:1 with white text) and keeps blue-600
   with the token glow. Danger buttons use the destructive token with dark text. Disabled buttons use a muted surface
