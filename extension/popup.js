@@ -697,6 +697,9 @@ async function saveClip(clip) {
     });
 
     if (response && response.success) {
+      // Keep the save receipt's handle and the minted key with the cached clip.
+      if (response.idempotency_key) clip.idempotency_key = response.idempotency_key;
+      if (response.receipt_handle) clip.receipt = response.receipt_handle;
       await cacheClipLocally(clip);
     } else {
       throw new Error(response?.error || 'Failed to save to server');
