@@ -33,9 +33,10 @@ const CLIP = () => ({
   metadata: {},
 });
 
-const res = (status, body) => ({
+const res = (status, body, headers = {}) => ({
   ok: status >= 200 && status < 300,
   status,
+  headers: { get: (k) => headers[k] ?? null },
   json: async () => {
     if (body === undefined) throw new SyntaxError('Unexpected end of JSON input');
     return body;
@@ -192,4 +193,30 @@ test('a clip that already has a key keeps it', async () => {
   const clip = { ...CLIP(), idempotency_key: 'sm2_11111111-1111-4111-8111-111111111111' };
   await t.sync(clip);
   assert.equal(t.calls[0].body.idempotency_key, 'sm2_11111111-1111-4111-8111-111111111111');
+});
+
+// Retry-After rows (spec: honor a safe minimum on 429/503, bounded by the wait budget).
+test('Retry-After 2 on 503 is a minimum delay before the same-key retry', async () => {
+  const t = load([res(503, {}, { 'Retry-After': '2' }), res(202, RECEIPT)]);
+  const out = await t.sync(CLIP());
+  assert.equal(out.success, true);
+  assert.deepEqual(t.sleeps, [2000]); // jitter 100 < 2000
+  assert.equal(t.calls[1].init.body, t.calls[0].init.body);
+});
+
+test('Retry-After 60 cannot fit: no retry, WARNING says the save was not confirmed', async () => {
+  const t = load([res(429, {}, { 'Retry-After': '60' })]);
+  const out = await t.sync(CLIP());
+  assert.equal(out.success, false);
+  assert.equal(out.error, 'HTTP 429');
+  assert.equal(t.calls.length, 1);
+  assert.ok(t.warnings.some((w) => /NOT confirmed.*keeps its idempotency key/.test(w)));
+  assert.ok(out.idempotency_key.startsWith('sm2_'));
+});
+
+test('Retry-After as a date or on a 500 is no hint', async () => {
+  const t = load([res(503, {}, { 'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT' }), res(500, {}, { 'Retry-After': '9' }), res(202, RECEIPT)]);
+  const out = await t.sync(CLIP());
+  assert.equal(out.success, true);
+  assert.deepEqual(t.sleeps, [100, 200]);
 });

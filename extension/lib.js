@@ -190,6 +190,16 @@ function smDecodeReceipt(wire) {
 const SM_RETRY_STATUS = [408, 429, 500, 502, 503, 504];
 const SM_RETRY_JITTER_MAX_MS = [200, 400, 800];
 
+const SM_RETRY_AFTER_MAX_MS = 10000;
+
+// Retry-After in whole seconds on 429/503 only; anything else (dates, junk) is no hint.
+function smRetryAfterMs(response) {
+  if (response.status !== 429 && response.status !== 503) return 0;
+  const raw = response.headers && typeof response.headers.get === 'function' ? response.headers.get('Retry-After') : null;
+  if (raw === null || raw === undefined || !/^\d{1,6}$/.test(String(raw).trim())) return 0;
+  return Number(String(raw).trim()) * 1000;
+}
+
 // POST with the receipt retry policy. Returns the final Response (ok or not);
 // throws the last transport error when every attempt was lost.
 async function smPostWithRetry(fetchFn, url, init, opts = {}) {
@@ -212,8 +222,15 @@ async function smPostWithRetry(fetchFn, url, init, opts = {}) {
       throw lastError;
     }
     const why = response ? `HTTP ${response.status}` : `transport error ${lastError && lastError.message}`;
+    // A safe Retry-After (seconds) on 429/503 is a minimum delay. One that cannot
+    // fit the wait budget ends the retries: the clip keeps its key for a later retry.
+    const hinted = response ? smRetryAfterMs(response) : 0;
+    if (hinted > SM_RETRY_AFTER_MAX_MS) {
+      warn(`SmartMemory Capture: server asked to wait ${hinted} ms after ${why}; not waiting. The save was NOT confirmed and the clip keeps its idempotency key`);
+      return response;
+    }
     warn(`SmartMemory Capture: save attempt ${i + 1} failed (${why}); retrying with the same idempotency key`);
-    await sleep(Math.floor(random() * SM_RETRY_JITTER_MAX_MS[i]));
+    await sleep(Math.max(Math.floor(random() * SM_RETRY_JITTER_MAX_MS[i]), hinted));
   }
   throw lastError;
 }
