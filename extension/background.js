@@ -183,12 +183,19 @@ async function syncToServer(clip, endpoint) {
     return { success: false, error: 'Invalid sync endpoint URL' };
   }
 
+  // One idempotency key per clip, stored with the clip BEFORE the first POST so a
+  // retry (here, or a later re-sync of the stored clip) is the same save.
+  if (!clip.idempotency_key) {
+    clip.idempotency_key = smMintIdempotencyKey();
+    await persistClipFields(clip.id, { idempotency_key: clip.idempotency_key });
+  }
+
   // Build the cross-compatible ingest body (service reads metadata from `context`,
   // the lite daemon from `properties`; both read `context.origin`). See lib.js.
   const payload = smBuildIngestPayload(clip);
 
   try {
-    const response = await fetch(`${endpoint}/memory/ingest`, {
+    const response = await smPostWithRetry(fetch, `${endpoint}/memory/ingest`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload)
@@ -198,11 +205,42 @@ async function syncToServer(clip, endpoint) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    return { success: true };
+    // The 202 body is the save receipt: keep its handle (run_id + status_url),
+    // never read it as a bare {id}. Anything unreadable is a typed refusal.
+    let decoded;
+    try {
+      decoded = smDecodeReceipt(await response.json());
+    } catch (e) {
+      if (e instanceof SmReceiptError) {
+        console.warn(`SmartMemory Capture: save answered but the receipt was refused (${e.message}); the clip's status handle ${e.handle ? e.handle.run_id : 'is missing'}`);
+        if (e.handle) await persistClipFields(clip.id, { receipt: e.handle });
+        return { success: false, error: e.message, code: e.code, receipt: e.handle, idempotency_key: clip.idempotency_key };
+      }
+      console.warn(`SmartMemory Capture: save answered but the body was unreadable (${e.message}); no status handle was kept`);
+      return { success: false, error: `unreadable: ${e.message}`, code: 'unreadable', idempotency_key: clip.idempotency_key };
+    }
+
+    if (decoded.kind === 'legacy') {
+      console.warn(`SmartMemory Capture: server answered with a bare item id (${decoded.item_id}), not a save receipt; no run_id or status handle was kept`);
+      return { success: true, receipt: null, item_id: decoded.item_id, idempotency_key: clip.idempotency_key };
+    }
+
+    const receiptHandle = smReceiptHandle(decoded.receipt);
+    await persistClipFields(clip.id, { receipt: receiptHandle });
+    return { success: true, receipt: decoded.receipt, receipt_handle: receiptHandle, idempotency_key: clip.idempotency_key };
   } catch (error) {
     console.error('Sync error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, idempotency_key: clip.idempotency_key };
   }
+}
+
+// Merge fields into the stored copy of a clip (a no-op when the clip is not stored yet).
+async function persistClipFields(clipId, fields) {
+  const { clips = [] } = await chrome.storage.local.get(['clips']);
+  const stored = clips.find((c) => c && c.id === clipId);
+  if (!stored) return;
+  Object.assign(stored, fields);
+  await chrome.storage.local.set({ clips });
 }
 
 // Context menu click handler — inject content script on demand, then show capture sheet (CAP-ENH-1h)
@@ -231,6 +269,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 async function saveSelectionClip(request, tab) {
   const clip = {
     id: crypto.randomUUID(),
+    idempotency_key: smMintIdempotencyKey(),
     title: tab.title,   // always use trusted tab values, not page-controlled request fields
     url: tab.url,
     mode: 'selection',
@@ -247,6 +286,7 @@ async function saveSelectionClip(request, tab) {
   if (syncMode === 'server-primary' && syncEndpoint) {
     const result = await syncToServer(clip);
     if (!result.success) return result;
+    if (result.receipt_handle) clip.receipt = result.receipt_handle;
   }
 
   const { clips = [] } = await chrome.storage.local.get(['clips']);
